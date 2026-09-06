@@ -29,7 +29,8 @@ export function consoleMigrationTarget(
 
 export async function migrateConsole(
   env: Record<string, string | undefined>,
-  check = false
+  check = false,
+  adoptLegacyAssetScaffold = false
 ) {
   const { url, local } = consoleMigrationTarget(env);
   const client = postgres(url, {
@@ -48,6 +49,7 @@ export async function migrateConsole(
         result = await transitionToBaseline(tx, {
           schema: "public",
           journalSchema: "drizzle",
+          adoptLegacyAssetScaffold,
         });
         if (check) throw rollback;
       })
@@ -64,7 +66,11 @@ if (
   process.argv[1] &&
   resolve(process.argv[1]) === fileURLToPath(import.meta.url)
 ) {
-  migrateConsole(process.env, process.argv.includes("--check"))
+  migrateConsole(
+    process.env,
+    process.argv.includes("--check"),
+    process.argv.includes("--adopt-legacy-assets")
+  )
     .then((result) => console.log(JSON.stringify(result)))
     .catch((error) => {
       // Never print driver queries, credentials or submitted application data.

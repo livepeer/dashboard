@@ -56,6 +56,7 @@ export async function transitionToBaseline(
     journalSchema: string;
     legacyFolder?: string;
     activeFolder?: string;
+    adoptLegacyAssetScaffold?: boolean;
   }
 ) {
   const {
@@ -106,7 +107,11 @@ export async function transitionToBaseline(
 
   // Reference schemas and their DDL disappear via savepoint rollback, even on
   // successful verification. Never DROP a supplied schema or touch its records.
-  async function verify(folder?: string, last = Infinity) {
+  async function verify(
+    folder?: string,
+    last = Infinity,
+    assetScaffold = false
+  ) {
     let expected: Record<string, unknown[]> | undefined;
     const rollback = Error("compaction_reference_rollback");
     await tx
@@ -114,6 +119,13 @@ export async function transitionToBaseline(
         const reference = `compact_${randomUUID().replaceAll("-", "")}`;
         await sp.unsafe(`CREATE SCHEMA "${reference}"`);
         if (folder) await replayMigrations(sp, reference, folder, last);
+        if (assetScaffold) {
+          for (const statement of readFileSync(
+            "scripts/db/legacy-asset-scaffold.sql",
+            "utf8"
+          ).split("--> statement-breakpoint"))
+            if (statement.trim()) await sp.unsafe(statement);
+        }
         expected = await schemaCatalog(sp, reference);
         throw rollback;
       })
@@ -127,7 +139,43 @@ export async function transitionToBaseline(
   if (plan.kind === "fresh") {
     await verify(); // Never baseline an unjournaled populated schema.
   } else if (plan.kind === "legacy") {
-    await verify(legacyFolder, plan.applied - 1);
+    let scaffold = false;
+    try {
+      await verify(legacyFolder, plan.applied - 1);
+    } catch (error) {
+      if (
+        !options.adoptLegacyAssetScaffold ||
+        plan.applied < 5 ||
+        plan.applied > 9 ||
+        !(error instanceof Error) ||
+        error.message !== "compaction_schema_drift"
+      )
+        throw error;
+      // Opt-in supports only the exact observed scaffold, not arbitrary drift.
+      await verify(legacyFolder, plan.applied - 1, true);
+      scaffold = true;
+    }
+    if (scaffold) {
+      await replayMigrations(tx, schema, legacyFolder, 8, [], journalSchema);
+      // Add the owner-scoped guard before removing the older global constraint.
+      // No row or table is dropped; table identity and grants stay intact.
+      await tx.unsafe(
+        'CREATE UNIQUE INDEX "mcp_assets_principal_job_url_unique" ON "mcp_assets" ("principal_id", "gateway_request_id", "url")'
+      );
+      await tx.unsafe(
+        'ALTER TABLE "mcp_assets" DROP CONSTRAINT "mcp_assets_job_url_unique"'
+      );
+      await tx.unsafe('DROP INDEX "mcp_assets_principal_created_idx"');
+      await tx.unsafe(
+        'CREATE INDEX "mcp_assets_principal_created_idx" ON "mcp_assets" ("principal_id", "created_at" DESC NULLS LAST)'
+      );
+      // Only record 0009 after its complete effective schema is established.
+      await verify(legacyFolder, 9);
+      await tx.unsafe(
+        `insert into "${journalSchema}".__drizzle_migrations(hash,created_at) values ($1,$2)`,
+        [legacy[9].hash, legacy[9].folderMillis]
+      );
+    }
     await replayMigrations(
       tx,
       schema,

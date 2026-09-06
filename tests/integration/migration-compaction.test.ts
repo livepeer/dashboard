@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { expect, it } from "vitest";
 import type postgres from "postgres";
 import { readMigrationFiles } from "drizzle-orm/migrator";
@@ -295,6 +296,67 @@ it.skipIf(!process.env.TEST_DATABASE_URL)(
       const actual = await schemaCatalog(tx, old);
       await replayMigrations(tx, fresh, candidate);
       expect(await schemaCatalog(tx, fresh)).toEqual(actual);
+    });
+  },
+  120_000
+);
+
+it.skipIf(!process.env.TEST_DATABASE_URL)(
+  "explicitly adopts the exact unjournaled asset scaffold without losing rows or accepting other drift",
+  async () => {
+    await rehearsal(async (tx, old, drift) => {
+      for (const namespace of [old, drift]) {
+        await replayMigrations(tx, namespace, "drizzle", 4);
+        await seedLegacy(tx);
+        for (const statement of readFileSync(
+          "scripts/db/legacy-asset-scaffold.sql",
+          "utf8"
+        ).split("--> statement-breakpoint"))
+          if (statement.trim()) await tx.unsafe(statement);
+        await tx`insert into mcp_assets(id,principal_id,url,capability,gateway_request_id,provider_request_id) values ('preserved-asset','legacy-owner','https://example.invalid/preserve.png','image','legacy-gateway','legacy-provider')`;
+        const before =
+          await tx`select to_jsonb(a) as row from mcp_assets a order by id`;
+        const [identity] =
+          await tx`select oid,relacl::text from pg_class where oid='mcp_assets'::regclass`;
+        if (namespace === drift) {
+          await tx`alter table mcp_assets add column unexpected text`;
+          await expect(
+            tx.savepoint((sp) =>
+              transitionToBaseline(sp, {
+                schema: namespace,
+                journalSchema: namespace,
+                adoptLegacyAssetScaffold: true,
+              })
+            )
+          ).rejects.toThrow("compaction_schema_drift");
+          expect(
+            (await tx`select count(*)::int n from __drizzle_migrations`)[0].n
+          ).toBe(5);
+          continue;
+        }
+        await expect(
+          tx.savepoint((sp) => transition(sp, namespace))
+        ).rejects.toThrow("compaction_schema_drift");
+        await transitionToBaseline(tx, {
+          schema: namespace,
+          journalSchema: namespace,
+          adoptLegacyAssetScaffold: true,
+        });
+        expect(
+          await tx`select to_jsonb(a)-'run_id'-'media_type'-'available_until'-'expires_at'-'unavailable_at'-'hidden_at' as row from mcp_assets a order by id`
+        ).toEqual(before);
+        expect(
+          (
+            await tx`select oid,relacl::text from pg_class where oid='mcp_assets'::regclass`
+          )[0]
+        ).toEqual(identity);
+        expect((await tx`select count(*)::int n from runs`)[0].n).toBe(0);
+        expect(
+          (await tx`select count(*)::int n from __drizzle_migrations`)[0].n
+        ).toBe(12);
+        await transition(tx, namespace);
+        expect((await tx`select count(*)::int n from mcp_assets`)[0].n).toBe(1);
+      }
     });
   },
   120_000

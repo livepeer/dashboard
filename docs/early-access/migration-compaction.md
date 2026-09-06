@@ -83,6 +83,28 @@ It rejects fresh/partially provisioned environments rather than guessing grants.
 
 ## Production rollout boundary
 
+September 6 inventory refinement: production has the exact five original journal
+entries **and an unjournaled, empty `mcp_assets` scaffold**. Its global job/URL
+unique constraint differs from the owner-scoped migration. The normal runner
+correctly refuses this drift. The explicit `--adopt-legacy-assets` option verifies
+the entire original-prefix-plus-scaffold catalog, completes migrations through
+`0008`, converts only the known indexes/constraint without dropping the table or
+rows, verifies exact `0009` equivalence, and then continues to the baseline.
+Any other drift is still rejected. The flag is not a blanket schema-drift bypass.
+
+This path passed synthetic preservation/drift tests and a real production-copy
+rehearsal on `br-red-bird-aup5kax5`, derived from backup `br-silent-sound-au7uunf5`
+at production LSN `0/2CE2D68`. All existing-column fingerprints matched after
+upgrade: 65 signups, 72 consent events, 172 queued/delivered outbox records,
+100 attribution touches, 72 sessions, 100 verification tokens, 189 rate-limit
+records, zero points and zero assets. The journal advanced from five to twelve
+entries; a repeat was a no-op. No email processing occurred.
+
+The isolated preview has now adopted the baseline (twelve journal entries) and
+passed a repeat rollback check. Production itself remains unchanged at this
+checkpoint. The old waitlist domain will move only after Console production is
+working at its current URL; domain transfer is a separate cutover.
+
 Production signups must survive. Before an explicitly authorized production
 rollout, obtain a current journal/schema inventory, verify a recoverable backup,
 pause competing migration runners, and rehearse with `--check`. If production
