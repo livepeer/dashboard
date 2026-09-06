@@ -1,4 +1,5 @@
-/** Explicitly guarded, additive preview-only migration. Defaults to read-only rehearsal. */
+/** Historical 0009→0010 rollout only. After baseline adoption use scripts/db/migrate.ts.
+ * Explicitly guarded, additive preview-only migration. Defaults to read-only rehearsal. */
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";

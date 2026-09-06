@@ -73,3 +73,23 @@ lib/
 | `/signup`      | public   | Sign up (hands off to Auth0)                  |
 
 See `CLAUDE.md` for console conventions (KPI rows, tables, motion tokens, color rules).
+
+## Database migrations
+
+New migrations are generated into `drizzle-baseline/`. The original `drizzle/`
+directory is immutable upgrade history for existing databases; do not edit it.
+
+Use `pnpm db:generate`, then review the generated SQL. For migration, supply an
+owner connection through `MIGRATION_DATABASE_URL` (or `DATABASE_URL`), an explicit
+`MIGRATION_EXPECTED_HOST`, and, for remote databases,
+`MIGRATION_EXPECTED_DATABASE`. Keep credentials out of shell history and Git.
+
+Run `pnpm db:migrate --check` for a rollback rehearsal, then `pnpm db:migrate`
+only for an approved target. The wrapper upgrades original-chain databases before
+adopting the baseline and preserves their existing migration journal. Do not use
+raw `drizzle-kit migrate` for this transition. No migration runs during build or
+application startup. Runtime permissions must be verified before deploying code
+that uses new tables.
+
+See [migration transition and rollout](docs/early-access/migration-compaction.md)
+for the tested production-waitlist upgrade path and preview-specific guard.

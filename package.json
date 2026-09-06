@@ -12,7 +12,7 @@
     "lint": "eslint . --max-warnings 0",
     "typecheck": "tsc --noEmit --incremental false",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
+    "db:migrate": "tsx scripts/db/migrate-console.ts",
     "db:studio": "drizzle-kit studio",
     "format": "prettier . --write",
     "format:check": "prettier . --check"

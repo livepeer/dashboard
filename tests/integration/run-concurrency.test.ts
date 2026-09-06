@@ -189,11 +189,11 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
         await tx.unsafe(`COMMENT ON SCHEMA "${namespace}" IS '${marker}'`);
         await tx.unsafe(`SET LOCAL search_path TO "${namespace}", public`);
         const journal = JSON.parse(
-          readFileSync("drizzle/meta/_journal.json", "utf8")
+          readFileSync("drizzle-baseline/meta/_journal.json", "utf8")
         );
         for (const { tag } of journal.entries)
           for (const statement of readFileSync(
-            `drizzle/${tag}.sql`,
+            `drizzle-baseline/${tag}.sql`,
             "utf8"
           ).split("--> statement-breakpoint"))
             if (statement.trim())

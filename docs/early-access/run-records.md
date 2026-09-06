@@ -1,5 +1,9 @@
 # Durable run records and temporary media
 
+Migration tooling update: use the [consolidated baseline transition](migration-compaction.md)
+for new rollouts. Original migrations remain unchanged as upgrade evidence; the
+baseline-aware runner replaces direct execution of the old migration chain.
+
 Status: additive `0010_run_records` applied to isolated preview
 `br-holy-sound-auugm104` on 2026-09-06; commit `16b39c5` deployed to the branch
 preview. This change removes the separate usage-only section; deployment of this
