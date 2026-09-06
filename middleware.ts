@@ -2,11 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth0 } from "@/lib/auth0";
 import { AUTH_SIGNIN_HREF } from "@/lib/console/auth-login";
 import { devMockResponse } from "@/lib/console/dev-mock";
-import {
-  isAllowlistExemptPath,
-  isAllowlistGatedPath,
-  isEmailAllowlisted,
-} from "@/lib/console/email-allowlist";
+import { identitySyncPath } from "@/lib/identity/sync-return";
 
 function copyAuthCookies(from: NextResponse, to: NextResponse): NextResponse {
   from.cookies.getAll().forEach((cookie) => {
@@ -41,12 +37,21 @@ export async function middleware(request: NextRequest) {
 
   const authRes = await auth0.middleware(request);
   const { pathname } = request.nextUrl;
-  if (isAllowlistExemptPath(pathname) || !isAllowlistGatedPath(pathname)) {
+  // Edge middleware manages provider cookies and early signed-out routing.
+  // Admission is checked in Node page/API services on every protected request.
+  if (!isSessionOnlyPath(pathname)) {
     return authRes;
   }
 
   const redirectTo = (path: string) =>
     copyAuthCookies(authRes, NextResponse.redirect(new URL(path, request.url)));
+
+  const legacyReferralCode = request.nextUrl.searchParams.get("ref")?.trim();
+  if (pathname === "/" && legacyReferralCode) {
+    const waitlistUrl = new URL("/waitlist", request.url);
+    waitlistUrl.searchParams.set("ref", legacyReferralCode);
+    return copyAuthCookies(authRes, NextResponse.redirect(waitlistUrl));
+  }
 
   try {
     const session = await auth0.getSession(request);
@@ -55,15 +60,14 @@ export async function middleware(request: NextRequest) {
     const signedIn = devMock || !!session?.user;
 
     if (!signedIn) {
-      return isSessionOnlyPath(pathname) ? redirectTo(AUTH_SIGNIN_HREF) : authRes;
-    }
-    if (!devMock && !isEmailAllowlisted(session?.user?.email)) {
-      return redirectTo("/waitlist");
+      return isSessionOnlyPath(pathname)
+        ? redirectTo(AUTH_SIGNIN_HREF)
+        : authRes;
     }
     // `/` is a pure redirect in both auth states; resolve it here too so the
-    // signed-in case doesn't paint an empty shell before moving to /home.
+    // signed-in case resolves admission and admin landing in Node, not Edge.
     if (pathname === "/") {
-      return redirectTo("/home");
+      return redirectTo(devMock ? "/home" : identitySyncPath("/home"));
     }
   } catch {
     return authRes;

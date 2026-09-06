@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { requireConsolePage } from "@/lib/access/page";
 
 /**
  * `/calls` folded into `/home` for the creator pilot — the call log now
@@ -17,5 +18,8 @@ export default async function CallsPage({
   const params = await searchParams;
   const request = params.request;
   const id = Array.isArray(request) ? request[0] : request;
+  await requireConsolePage(
+    id ? `/calls?request=${encodeURIComponent(id)}` : "/calls"
+  );
   redirect(id ? `/home?request=${encodeURIComponent(id)}` : "/home");
 }

@@ -1,8 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AccountRequestsPayload } from "@/lib/console/account-usage";
-import { createClientCache } from "@/lib/console/client-cache";
 import { mapSignedTicketToActivityRow } from "@/lib/console/signed-ticket-activity";
 import type { AccountActivityRow } from "@/lib/console/types";
 
@@ -11,130 +10,140 @@ type ReadyState = {
   rows: AccountActivityRow[];
   nextCursor: string | null;
   openMeterConfigured: boolean;
-  /** Set when a further page failed to load. The rows already on screen
-   *  are kept; only the append is retried. */
   loadMoreError: string | null;
 };
-
 type AccountRequestsState =
   | { status: "idle" }
   | { status: "loading" }
   | ReadyState
   | { status: "error"; message: string };
 
-/** New calls land within a minute; a short TTL keeps navigation free. */
-const CACHE_TTL_MS = 60_000;
-const CACHE_KEY = "account-requests";
-
-/** Holds the list as last shown, including any pages appended via loadMore. */
-const requestsCache = createClientCache<ReadyState>(CACHE_TTL_MS);
-
 async function fetchRequestsPage(
-  cursor?: string | null
-): Promise<Omit<ReadyState, "loadMoreError">> {
+  cursor: string | null,
+  signal: AbortSignal
+): Promise<ReadyState> {
   const params = new URLSearchParams({ limit: "50" });
   if (cursor) params.set("cursor", cursor);
-
   const response = await fetch(`/api/pymthouse/account-requests?${params}`, {
     cache: "no-store",
+    signal,
   });
   const body = (await response.json()) as AccountRequestsPayload & {
     error?: string;
   };
-  if (!response.ok) {
+  if (!response.ok)
     throw new Error(body.error ?? `Requests fetch failed (${response.status})`);
-  }
   return {
     status: "ready",
     rows: body.items.map(mapSignedTicketToActivityRow),
     nextCursor: body.nextCursor,
     openMeterConfigured: body.openMeterConfigured !== false,
+    loadMoreError: null,
   };
 }
 
-export function useAccountRequests(enabled: boolean) {
-  // Seeded from the module cache so a remount paints the last list on its
-  // first frame; the first page then revalidates behind it when stale.
-  const [state, setState] = useState<AccountRequestsState>(() => {
-    const cached = enabled ? requestsCache.peek(CACHE_KEY) : undefined;
-    return cached ? cached.data : { status: "idle" };
-  });
-  const requestId = useRef(0);
-
-  const load = useCallback(
-    async (force = false) => {
-      if (!enabled) {
-        setState({
-          status: "error",
-          message: "Sign in to load signed-ticket requests.",
-        });
-        return;
-      }
-
-      const id = ++requestId.current;
-      const cached = requestsCache.peek(CACHE_KEY);
-
-      if (cached) {
-        setState(cached.data);
-        if (requestsCache.isFresh(cached) && !force) return;
-      } else {
-        setState({ status: "loading" });
-      }
-
-      if (force) requestsCache.delete(CACHE_KEY);
-
-      try {
-        const page = await requestsCache.fetch(CACHE_KEY, async () => ({
-          ...(await fetchRequestsPage(null)),
-          loadMoreError: null,
-        }));
-        if (id !== requestId.current) return;
-        setState(page);
-      } catch (error) {
-        if (id !== requestId.current) return;
-        // A failed revalidation should not throw away a good cached list.
-        if (cached) return;
-        setState({
-          status: "error",
-          message:
-            error instanceof Error ? error.message : "Failed to load requests",
-        });
-      }
-    },
-    [enabled]
-  );
+/** Private history is instance-local, never a global cross-account cache.
+ * ownerKey invalidates in-flight work even when both old/new accounts are enabled. */
+export function useAccountRequests(enabled: boolean, ownerKey?: string) {
+  const scope = enabled ? (ownerKey ?? "authenticated-instance") : "disabled";
+  const [stored, setStored] = useState<{
+    scope: string;
+    state: AccountRequestsState;
+  }>({ scope, state: { status: "idle" } });
+  const [refresh, setRefresh] = useState(0);
+  const generation = useRef(0);
+  const appendBusy = useRef(false);
+  const appendController = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    const id = ++generation.current;
+    const controller = new AbortController();
+    appendController.current?.abort();
+    appendBusy.current = false;
+    setStored({ scope, state: { status: enabled ? "loading" : "idle" } });
+    if (enabled)
+      void fetchRequestsPage(null, controller.signal)
+        .then((page) => {
+          if (generation.current === id) setStored({ scope, state: page });
+        })
+        .catch((error: unknown) => {
+          if (!controller.signal.aborted && generation.current === id)
+            setStored({
+              scope,
+              state: {
+                status: "error",
+                message:
+                  error instanceof Error
+                    ? error.message
+                    : "Failed to load requests",
+              },
+            });
+        });
+    return () => {
+      generation.current = id + 1;
+      controller.abort();
+      appendController.current?.abort();
+    };
+  }, [scope, enabled, refresh]);
 
+  const state = useMemo<AccountRequestsState>(
+    () =>
+      enabled && stored.scope === scope ? stored.state : { status: "idle" },
+    [enabled, stored, scope]
+  );
   const loadMore = useCallback(async () => {
-    if (state.status !== "ready" || !state.nextCursor) return;
-    const id = ++requestId.current;
+    if (
+      !enabled ||
+      state.status !== "ready" ||
+      !state.nextCursor ||
+      appendBusy.current
+    )
+      return;
+    const id = generation.current;
+    const controller = new AbortController();
+    appendController.current = controller;
+    appendBusy.current = true;
     try {
-      const page = await fetchRequestsPage(state.nextCursor);
-      if (id !== requestId.current) return;
-      setState((prev) => {
-        if (prev.status !== "ready") return prev;
-        const next: ReadyState = {
-          ...page,
-          rows: [...prev.rows, ...page.rows],
-          loadMoreError: null,
+      const page = await fetchRequestsPage(state.nextCursor, controller.signal);
+      if (generation.current !== id) return;
+      setStored((previous) => {
+        if (previous.scope !== scope || previous.state.status !== "ready")
+          return previous;
+        return {
+          scope,
+          state: {
+            ...page,
+            rows: [
+              ...new Map(
+                [...previous.state.rows, ...page.rows].map((row) => [
+                  row.id,
+                  row,
+                ])
+              ).values(),
+            ],
+          },
         };
-        requestsCache.set(CACHE_KEY, next);
-        return next;
       });
     } catch (error) {
-      if (id !== requestId.current) return;
-      const message =
-        error instanceof Error ? error.message : "Failed to load requests";
-      setState((prev) =>
-        prev.status === "ready" ? { ...prev, loadMoreError: message } : prev
+      if (controller.signal.aborted || generation.current !== id) return;
+      setStored((previous) =>
+        previous.scope === scope && previous.state.status === "ready"
+          ? {
+              scope,
+              state: {
+                ...previous.state,
+                loadMoreError:
+                  error instanceof Error
+                    ? error.message
+                    : "Failed to load requests",
+              },
+            }
+          : previous
       );
+    } finally {
+      if (generation.current === id) appendBusy.current = false;
     }
-  }, [state]);
-
-  const reload = useCallback(() => load(true), [load]);
-
+  }, [enabled, state, scope]);
+  const reload = useCallback(() => setRefresh((value) => value + 1), []);
   return { ...state, reload, loadMore };
 }

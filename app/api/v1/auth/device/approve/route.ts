@@ -6,12 +6,14 @@ import {
   parseDeviceInitiateParams,
 } from "@/lib/console/device-approval";
 import { requireConsoleSession } from "@/lib/console/session-user";
+import { requireSameOrigin } from "@/lib/admin/http";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
+    requireSameOrigin(request);
     const session = await requireConsoleSession();
     const body = (await request.json()) as {
       iss?: unknown;

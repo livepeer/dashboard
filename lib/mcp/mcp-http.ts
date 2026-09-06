@@ -4,6 +4,26 @@ import { extractBearer, verifyMcpUserJwt } from "./jwt";
 import { corsHeaders, mcpIdentityBody, wwwAuthenticate } from "./oauth";
 import { mcpPublicOrigin } from "./env";
 import { clientClassFromHeaders, hashPrincipal, logToolCall } from "./log";
+import { AccessError } from "@/lib/access/service";
+import { requireApprovedMcpAccount } from "./access";
+
+function accessFailure(req: Request, error: AccessError): Response {
+  return Response.json(
+    {
+      jsonrpc: "2.0",
+      id: null,
+      error: {
+        code: -32003,
+        message: error.message,
+        data: { code: error.code },
+      },
+    },
+    {
+      status: error.status,
+      headers: { ...corsHeaders(req), "Cache-Control": "no-store" },
+    }
+  );
+}
 
 export function optionsResponse(req: Request): Response {
   return new Response(null, { status: 204, headers: corsHeaders(req) });
@@ -55,8 +75,18 @@ export async function handleMcpRequest(req: Request): Promise<Response> {
   let principal;
   try {
     principal = await verifyMcpUserJwt(bearer);
-  } catch {
+  } catch (error) {
+    if (error instanceof AccessError) return accessFailure(req, error);
     return unauthorized(req, null);
+  }
+
+  try {
+    await requireApprovedMcpAccount(principal.externalUserId);
+  } catch (error) {
+    return accessFailure(
+      req,
+      error instanceof AccessError ? error : new AccessError("unavailable")
+    );
   }
 
   const started = Date.now();

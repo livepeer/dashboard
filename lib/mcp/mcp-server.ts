@@ -1,4 +1,3 @@
-import { isQueueControlUrl } from "@pymthouse/gateway-web";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import {
@@ -7,13 +6,17 @@ import {
 } from "./discovery";
 import { runInference } from "./gateway";
 import type { McpPrincipal } from "./jwt";
-import {
-  runCapabilityFailurePayload,
-  validateRunCapabilityEndpoint,
-} from "./run-capability";
+import { executeDurableRun } from "@/lib/runs/execute";
+import * as runStore from "@/lib/runs/store";
 import { fetchMcpUsage } from "./pymthouse-spend";
 import { assertSpendable } from "./pymthouse-usage";
-import { forgetAssets, listAssets, rememberAsset } from "./store";
+import {
+  forgetAssets,
+  listAssets,
+  logAssetStoreError,
+  publicAssetStoreError,
+  serializeAsset,
+} from "./store";
 import { principalId } from "./log";
 
 function text(data: unknown, isError = false) {
@@ -26,10 +29,6 @@ function text(data: unknown, isError = false) {
       },
     ],
   };
-}
-
-function newId(prefix: string): string {
-  return `${prefix}_${crypto.randomUUID().replaceAll("-", "").slice(0, 16)}`;
 }
 
 const RUN_CAPABILITY_TIMEOUT_MS = 780_000;
@@ -162,29 +161,60 @@ export function buildRawMcpServer(principal: McpPrincipal): McpServer {
   server.registerTool(
     "get_recent_assets",
     {
-      description: "Assets produced in this isolate for the current principal.",
+      description:
+        "Recent media URLs for this principal, persisted in Postgres. Newest first, default 20, max 50.",
       inputSchema: {},
     },
-    async () => text({ assets: listAssets(pid) })
+    async () => {
+      try {
+        const assets = await listAssets(pid);
+        return text({
+          assets: assets.map(serializeAsset),
+          count: assets.length,
+        });
+      } catch (err) {
+        logAssetStoreError(err);
+        return text(publicAssetStoreError(), true);
+      }
+    }
   );
 
   server.registerTool(
     "search_assets",
     {
-      description: "Search recent assets by capability or URL substring.",
+      description:
+        "Search this principal's persisted assets by capability, URL, or gateway_request_id substring.",
       inputSchema: { query: z.string().min(1) },
     },
-    async ({ query }) => text({ assets: listAssets(pid, query) })
+    async ({ query }) => {
+      try {
+        const assets = await listAssets(pid, query);
+        return text({
+          assets: assets.map(serializeAsset),
+          count: assets.length,
+        });
+      } catch (err) {
+        logAssetStoreError(err);
+        return text(publicAssetStoreError(), true);
+      }
+    }
   );
 
   server.registerTool(
     "forget_assets",
     {
       description:
-        "Drop remembered assets for this principal (this isolate only).",
+        "Hide assets from this principal's asset library. Run history and references are retained. Omit ids to hide every library asset they own.",
       inputSchema: { ids: z.array(z.string()).optional() },
     },
-    async ({ ids }) => text({ forgotten: forgetAssets(pid, ids) })
+    async ({ ids }) => {
+      try {
+        return text({ forgotten: await forgetAssets(pid, ids) });
+      } catch (err) {
+        logAssetStoreError(err);
+        return text(publicAssetStoreError(), true);
+      }
+    }
   );
 
   server.registerTool(
@@ -249,65 +279,31 @@ export function buildRawMcpServer(principal: McpPrincipal): McpServer {
       },
     },
     async ({ capability, inputs, prompt, endpoint }, extra) => {
-      try {
-        assertSpendable(await fetchMcpUsage(principal));
-      } catch (err) {
-        return text(err instanceof Error ? err.message : String(err), true);
-      }
-
-      const row = await describeNetworkCapability(principal, capability);
-      const endpointError = validateRunCapabilityEndpoint(
-        capability,
-        row,
-        endpoint
-      );
-      if (endpointError) return text(endpointError, true);
-
-      const gatewayRequestId = newId("job");
       const started = Date.now();
       const heartbeat = setInterval(() => {
         void sendRunProgress(extra, Date.now() - started, "waiting on runner");
       }, 5_000);
       void sendRunProgress(extra, 0, "waiting on runner");
       try {
-        const result = await runInference(principal, {
-          capability,
-          params: (inputs as Record<string, unknown> | undefined) ?? {},
-          prompt,
-          endpoint: row?.mode === "persistent" ? endpoint : undefined,
-          timeoutMs: RUN_CAPABILITY_TIMEOUT_MS,
-          gatewayRequestId,
-          onProgress: (info) =>
-            sendRunProgress(extra, info.elapsedMs, `queue ${info.status}`),
-        });
-        const urlRaw =
-          result.url ?? result.imageUrl ?? result.videoUrl ?? result.audioUrl;
-        const url = urlRaw && !isQueueControlUrl(urlRaw) ? urlRaw : null;
-        if (url) {
-          rememberAsset(pid, {
-            id: newId("asset"),
-            url,
+        const result = await executeDurableRun(
+          principal,
+          {
             capability,
-            createdAt: new Date().toISOString(),
-            gatewayRequestId: result.gatewayRequestId,
-          });
-        }
-        return text({
-          capability,
-          url,
-          status: result.status,
-          request_id: result.providerRequestId,
-          status_url: result.statusUrl,
-          response_url: result.responseUrl,
-          orchestrator: result.orchestrator,
-          elapsed_ms: result.elapsedMs,
-          gateway_request_id: result.gatewayRequestId,
-          ...(url ? {} : { data: result.data }),
-        });
-      } catch (err) {
-        // A call can fail after tickets were already paid, so the id must be
-        // reported here too or that spend is unattributable.
-        return text(runCapabilityFailurePayload(err, gatewayRequestId), true);
+            ...(inputs === undefined ? {} : { inputs }),
+            ...(prompt === undefined ? {} : { prompt }),
+            ...(endpoint === undefined ? {} : { endpoint }),
+          },
+          {
+            store: runStore,
+            checkSpend: async () =>
+              assertSpendable(await fetchMcpUsage(principal)),
+            describe: () => describeNetworkCapability(principal, capability),
+            infer: (request) => runInference(principal, request),
+            onProgress: (info) =>
+              sendRunProgress(extra, info.elapsedMs, `queue ${info.status}`),
+          }
+        );
+        return text(result.payload, result.isError);
       } finally {
         clearInterval(heartbeat);
       }

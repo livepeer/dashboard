@@ -1,0 +1,1 @@
+ALTER TABLE "waitlist_signups" ADD CONSTRAINT "waitlist_signups_referred_by_waitlist_signups_id_fk" FOREIGN KEY ("referred_by") REFERENCES "public"."waitlist_signups"("id") ON DELETE set null ON UPDATE no action;

@@ -3,8 +3,7 @@
 import Link from "next/link";
 import type { FormEvent } from "react";
 import { useRef } from "react";
-import { motion } from "framer-motion";
-import { LivepeerLockup } from "@/components/design-system/LivepeerLogo";
+import { AuthCard } from "./AuthCard";
 import {
   authLoginHref,
   consoleSignInHref,
@@ -111,87 +110,75 @@ export function AuthPanel({ mode, returnTo = "/home" }: AuthPanelProps) {
   });
 
   return (
-    <motion.section
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-      className="w-full max-w-[420px] overflow-hidden rounded-sm bg-background shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--foreground)_8%,transparent)]"
-      aria-label={isSignup ? "Sign up" : "Sign in"}
-    >
-      <div className="px-5 py-6 sm:px-6 sm:py-7">
-        <div className="flex justify-center py-5">
-          <LivepeerLockup className="h-auto w-[184px] text-foreground" />
-        </div>
+    <AuthCard label={isSignup ? "Sign up" : "Sign in"}>
+      <form className="mt-7 space-y-3" onSubmit={handleEmailSubmit}>
+        <label className="block">
+          <span className="sr-only">Email address</span>
+          <input
+            ref={emailRef}
+            type="email"
+            name="email"
+            autoComplete="email"
+            inputMode="email"
+            className={inputClass}
+            placeholder="Email address"
+          />
+        </label>
+        <button type="submit" className={primaryButtonClass}>
+          {copy.submit}
+        </button>
+      </form>
 
-        <form className="mt-7 space-y-3" onSubmit={handleEmailSubmit}>
-          <label className="block">
-            <span className="sr-only">Email address</span>
-            <input
-              ref={emailRef}
-              type="email"
-              name="email"
-              autoComplete="email"
-              inputMode="email"
-              className={inputClass}
-              placeholder="Email address"
-            />
-          </label>
-          <button type="submit" className={primaryButtonClass}>
-            {copy.submit}
-          </button>
-        </form>
-
-        <div className="my-5 flex items-center gap-3">
-          <div className="h-px flex-1 bg-border" />
-          <span className="text-xs text-muted-foreground">or</span>
-          <div className="h-px flex-1 bg-border" />
-        </div>
-
-        <div className="space-y-3">
-          <a href={googleHref} className={providerButtonClass}>
-            <GoogleIcon className="h-4 w-4 shrink-0" />
-            {isSignup ? "Sign up with Google" : "Sign in with Google"}
-          </a>
-          <a href={githubHref} className={providerButtonClass}>
-            <GitHubIcon className="h-4 w-4 shrink-0" />
-            {isSignup ? "Sign up with GitHub" : "Sign in with GitHub"}
-          </a>
-        </div>
-
-        <p className="mt-6 text-center text-sm text-muted-foreground">
-          {copy.footer}{" "}
-          <Link
-            href={footerHref}
-            className="font-medium text-foreground underline decoration-border underline-offset-4 transition-colors hover:decoration-foreground"
-          >
-            {copy.footerAction}
-          </Link>
-        </p>
-
-        {isSignup ? (
-          <p className="mt-3 text-balance text-center text-[11px] leading-relaxed text-muted-foreground">
-            By creating an account, you agree to our{" "}
-            <a
-              href="https://livepeer.org/terms"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline decoration-border underline-offset-2 transition-colors hover:text-foreground hover:decoration-foreground"
-            >
-              Terms
-            </a>{" "}
-            and{" "}
-            <a
-              href="https://livepeer.org/privacy"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline decoration-border underline-offset-2 transition-colors hover:text-foreground hover:decoration-foreground"
-            >
-              Privacy Policy
-            </a>
-            .
-          </p>
-        ) : null}
+      <div className="my-5 flex items-center gap-3">
+        <div className="h-px flex-1 bg-border" />
+        <span className="text-xs text-muted-foreground">or</span>
+        <div className="h-px flex-1 bg-border" />
       </div>
-    </motion.section>
+
+      <div className="space-y-3">
+        <a href={googleHref} className={providerButtonClass}>
+          <GoogleIcon className="h-4 w-4 shrink-0" />
+          {isSignup ? "Sign up with Google" : "Sign in with Google"}
+        </a>
+        <a href={githubHref} className={providerButtonClass}>
+          <GitHubIcon className="h-4 w-4 shrink-0" />
+          {isSignup ? "Sign up with GitHub" : "Sign in with GitHub"}
+        </a>
+      </div>
+
+      <p className="mt-6 text-center text-sm text-muted-foreground">
+        {copy.footer}{" "}
+        <Link
+          href={footerHref}
+          className="font-medium text-foreground underline decoration-border underline-offset-4 transition-colors hover:decoration-foreground"
+        >
+          {copy.footerAction}
+        </Link>
+      </p>
+
+      {isSignup ? (
+        <p className="mt-3 text-balance text-center text-[11px] leading-relaxed text-muted-foreground">
+          By creating an account, you agree to our{" "}
+          <a
+            href="https://livepeer.org/terms"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline decoration-border underline-offset-2 transition-colors hover:text-foreground hover:decoration-foreground"
+          >
+            Terms
+          </a>{" "}
+          and{" "}
+          <a
+            href="https://livepeer.org/privacy"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline decoration-border underline-offset-2 transition-colors hover:text-foreground hover:decoration-foreground"
+          >
+            Privacy Policy
+          </a>
+          .
+        </p>
+      ) : null}
+    </AuthCard>
   );
 }

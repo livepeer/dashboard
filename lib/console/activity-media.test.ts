@@ -22,7 +22,9 @@ test("signed-ticket join copies output URL and provider request id", () => {
     outputUrl: "https://v3b.fal.media/files/x.jpg",
     providerRequestId: "req-fal",
   });
-  assert.equal(row.id, "job_abc");
+  assert.equal(row.id, "usage:evt_1");
+  assert.equal(row.gatewayRequestId, "job_abc");
+  assert.equal(row.status, "unknown");
   assert.equal(row.outputUrl, "https://v3b.fal.media/files/x.jpg");
   assert.equal(row.providerRequestId, "req-fal");
 });

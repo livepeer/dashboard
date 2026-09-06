@@ -1,20 +1,8 @@
-"use client";
-
+import { requireConsolePage } from "@/lib/access/page";
 import KeysView from "@/components/console/KeysView";
-import SignInWall from "@/components/console/SignInWall";
-import { useAuth } from "@/components/console/AuthContext";
 
-// Note: the previous server-component metadata moves out with the auth gate.
-// Title/description for /keys now come from the layout's defaults.
-
-export default function KeysPage() {
-  const { isConnected, isLoading } = useAuth();
-
-  if (isLoading) return null;
-
-  // Organization-only — logged-out users see the route-specific sign-in wall
-  // ("API keys are scoped to an organization…") instead of the keys table.
-  if (!isConnected) return <SignInWall route="keys" />;
-
+export const dynamic = "force-dynamic";
+export default async function KeysPage() {
+  await requireConsolePage("/keys");
   return <KeysView />;
 }

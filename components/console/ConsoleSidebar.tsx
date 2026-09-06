@@ -11,8 +11,19 @@ import { AUTH_SIGNIN_HREF, AUTH_SIGNUP_HREF } from "@/lib/console/auth-login";
 import { useAuth, type ConsoleUser } from "@/components/console/AuthContext";
 import Drawer from "@/components/design-system/Drawer";
 import NavLink from "@/components/console/NavLink";
+import { THEME_OPTIONS, useTheme } from "@/components/console/ThemeContext";
 
-type PortalNavItem = (typeof PORTAL_NAV_ITEMS)[number];
+type PortalNavItem = {
+  href: string;
+  label: string;
+  zone: "network" | "organization";
+};
+
+const ADMIN_NAV_ITEM: PortalNavItem = {
+  label: "Admin",
+  href: "/admin",
+  zone: "organization",
+};
 
 function getNavActive(itemHref: string, pathname: string): boolean {
   if (itemHref === "/home") return pathname === "/home";
@@ -91,10 +102,7 @@ function MobileBrandLink({
       className="inline-flex h-10 items-center rounded-sm p-1.5 text-foreground"
       onClick={onNavigate}
     >
-      <LivepeerLockup
-        className="h-4 w-auto"
-        aria-hidden="true"
-      />
+      <LivepeerLockup className="h-4 w-auto" aria-hidden="true" />
     </Link>
   );
 }
@@ -136,6 +144,7 @@ function UserFooter({
   onSignOut: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const { preference, setPreference, isLoading: themeLoading } = useTheme();
   const reduceMotion = useReducedMotion();
   const transition = reduceMotion
     ? { duration: 0 }
@@ -165,10 +174,7 @@ function UserFooter({
           onClick={() => setOpen((next) => !next)}
           className="flex w-full min-w-0 items-center gap-2 p-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
         >
-          <UserAvatar
-            user={user}
-            className="h-7 w-7 shrink-0 rounded-full"
-          />
+          <UserAvatar user={user} className="h-7 w-7 shrink-0 rounded-full" />
           <span className="min-w-0 flex-1 truncate text-ui-caption text-muted-foreground">
             {user.email}
           </span>
@@ -199,8 +205,27 @@ function UserFooter({
                 transition={transition}
                 className="px-3 pb-5"
               >
-                <div className="min-h-8" aria-hidden="true" />
-                <div className="mt-4 flex justify-end">
+                <div className="mt-4 flex items-center justify-between gap-3">
+                  <div
+                    role="group"
+                    aria-label="Appearance"
+                    className="inline-flex rounded-full p-0.5"
+                  >
+                    {THEME_OPTIONS.map(({ value, label, icon: Icon }) => (
+                      <button
+                        key={value}
+                        type="button"
+                        aria-label={`${label} appearance`}
+                        aria-pressed={preference === value}
+                        title={label}
+                        disabled={themeLoading}
+                        onClick={() => setPreference(value)}
+                        className={`inline-flex size-7 items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${preference === value ? "bg-foreground/3 text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                      >
+                        <Icon className="size-3.5" aria-hidden="true" />
+                      </button>
+                    ))}
+                  </div>
                   <button
                     type="button"
                     onClick={signOut}
@@ -343,7 +368,10 @@ function SignedOutSidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const { isConnected, isLoading, user, disconnect } = useAuth();
-  const primaryItems = PORTAL_NAV_ITEMS.filter((i) => i.zone !== "network");
+  const primaryItems: PortalNavItem[] = PORTAL_NAV_ITEMS.filter(
+    (i) => i.zone !== "network"
+  );
+  if (user?.isAdmin) primaryItems.push(ADMIN_NAV_ITEM);
 
   if (!isLoading && !isConnected) {
     return <SignedOutSidebarContent onNavigate={onNavigate} />;
@@ -373,9 +401,10 @@ function MobileSidebarContent({ onNavigate }: { onNavigate: () => void }) {
   const { isConnected, isLoading, user, disconnect } = useAuth();
   const pathname = usePathname();
   const isSignedOut = !isLoading && !isConnected;
-  const items = PORTAL_NAV_ITEMS.filter((i) =>
+  const items: PortalNavItem[] = PORTAL_NAV_ITEMS.filter((i) =>
     isSignedOut ? i.zone === "network" : i.zone !== "network"
   );
+  if (!isSignedOut && user?.isAdmin) items.push(ADMIN_NAV_ITEM);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 sm:px-6">
@@ -440,10 +469,7 @@ function MobileHeader({
 
   return (
     <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center justify-between border-b border-background/70 bg-background/10 px-3 backdrop-blur-sm md:hidden">
-      <MobileBrandLink
-        href={homeHref}
-        label="Livepeer Early Access"
-      />
+      <MobileBrandLink href={homeHref} label="Livepeer Early Access" />
       <MobileMenuButton
         open={drawerOpen}
         label="Open navigation"

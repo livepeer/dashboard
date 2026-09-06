@@ -17,6 +17,20 @@ import {
   type MediaSpec,
 } from "@/lib/console/activity-media";
 import type { AccountActivityRow } from "@/lib/console/types";
+import { mediaRetentionNotice } from "@/lib/console/media-retention";
+import type { RunDetail } from "@/lib/runs/types";
+import { requestFeeDisplay } from "@/lib/console/request-fee-display";
+
+function safeMediaUrl(value: string | undefined): string | undefined {
+  try {
+    const url = new URL(value ?? "");
+    return url.protocol === "https:" && !url.username && !url.password
+      ? url.href
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 function formatTimestamp(iso: string): string {
   const date = new Date(iso);
@@ -54,7 +68,7 @@ function CapabilityChip({ children }: { children: ReactNode }) {
 
 function EmptyOutput() {
   return (
-    <div className="flex h-full w-full items-center justify-center text-sm text-white/50">
+    <div className="flex h-full w-full items-center justify-center text-sm text-fg-muted">
       No output stored for this job
     </div>
   );
@@ -86,7 +100,7 @@ function ImagePreview({ src, title }: { src: string; title: string }) {
 
   if (failed) {
     return (
-      <div className="flex h-full w-full items-center justify-center text-sm text-white/50">
+      <div className="flex h-full w-full items-center justify-center text-sm text-fg-muted">
         Preview unavailable
       </div>
     );
@@ -132,7 +146,7 @@ function AudioPreview({ src }: { src?: string }) {
 
 function TextPreview({ text }: { text: string }) {
   return (
-    <pre className="max-h-full w-full max-w-3xl overflow-auto whitespace-pre-wrap rounded-[6px] bg-black/20 p-6 text-left text-sm leading-6 text-white/75">
+    <pre className="max-h-full w-full max-w-3xl overflow-auto whitespace-pre-wrap rounded-[6px] bg-foreground/3 p-6 text-left text-sm leading-6 text-fg">
       {text}
     </pre>
   );
@@ -140,13 +154,16 @@ function TextPreview({ text }: { text: string }) {
 
 function JsonPreview({ value }: { value: unknown }) {
   return (
-    <pre className="max-h-full w-full max-w-3xl overflow-auto whitespace-pre-wrap rounded-[6px] bg-black/20 p-6 text-left font-mono text-xs leading-6 text-white/70">
+    <pre className="max-h-full w-full max-w-3xl overflow-auto whitespace-pre-wrap rounded-[6px] bg-foreground/3 p-6 text-left font-mono text-xs leading-6 text-fg">
       {JSON.stringify(value, null, 2)}
     </pre>
   );
 }
 
 function MediaStage({ media }: { media: MediaSpec }) {
+  const retentionNotice = mediaRetentionNotice(
+    media.imageUrl ?? media.videoUrl ?? media.audioUrl
+  );
   return (
     <div className="relative flex aspect-video w-full min-h-0 min-w-0 items-start justify-center overflow-auto bg-background lg:aspect-auto lg:h-full lg:items-center">
       {media.kind === "image" &&
@@ -158,12 +175,13 @@ function MediaStage({ media }: { media: MediaSpec }) {
       {media.kind === "video" && <VideoPreview src={media.videoUrl} />}
       {media.kind === "audio" && <AudioPreview src={media.audioUrl} />}
       {media.kind === "text" &&
-        (media.text ? (
-          <TextPreview text={media.text} />
-        ) : (
-          <EmptyOutput />
-        ))}
+        (media.text ? <TextPreview text={media.text} /> : <EmptyOutput />)}
       {media.kind === "json" && <JsonPreview value={media.json} />}
+      {retentionNotice && (
+        <p className="absolute bottom-3 left-3 right-3 rounded-md bg-background/90 px-3 py-2 text-center text-xs text-muted-foreground">
+          {retentionNotice}
+        </p>
+      )}
     </div>
   );
 }
@@ -242,19 +260,64 @@ export default function CallDetailDrawer({
   open,
   onClose,
   onSelectRow,
+  detail,
+  detailLoading = false,
+  detailError,
+  onRetryDetail,
 }: {
   row: AccountActivityRow | null;
   rows?: AccountActivityRow[];
   open: boolean;
   onClose: () => void;
   onSelectRow?: (row: AccountActivityRow) => void;
+  detail?: RunDetail | null;
+  detailLoading?: boolean;
+  detailError?: string | null;
+  onRetryDetail?: () => void;
 }) {
   const [mounted, setMounted] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const previousActiveRef = useRef<HTMLElement | null>(null);
   const wheelDeltaRef = useRef(0);
   const lastWheelNavigationRef = useRef(0);
-  const media = row ? mediaSpecForRow(row) : null;
+  const [selectedAsset, setSelectedAsset] = useState<{
+    runId: string;
+    id: string;
+  } | null>(null);
+  const activeDetail = detail?.id === row?.id ? detail : null;
+  const asset =
+    activeDetail?.assets.find(
+      (item) =>
+        selectedAsset &&
+        selectedAsset.runId === row?.id &&
+        item.id === selectedAsset.id
+    ) ?? activeDetail?.assets[0];
+  let media = row
+    ? mediaSpecForRow({
+        ...row,
+        status: asset ? "unknown" : row.status,
+        outputUrl: safeMediaUrl(asset?.url ?? row.outputUrl),
+      })
+    : null;
+  if (row && activeDetail && !asset) {
+    media = {
+      kind: "json",
+      title: `${row.model} result`,
+      label: "Result",
+      format: "JSON",
+      metricLabel: "Output",
+      metricValue: activeDetail.result ? "Recorded" : "Not available",
+      source: row.signerLabel,
+      json:
+        activeDetail.result ??
+        (activeDetail.errorCode
+          ? {
+              error: activeDetail.errorCode,
+              message: activeDetail.errorMessage,
+            }
+          : { status: activeDetail.status, result: null }),
+    };
+  }
 
   useEffect(() => {
     setMounted(true);
@@ -384,7 +447,7 @@ export default function CallDetailDrawer({
                 </DetailRow>
                 <DetailRow label="Job">
                   <span className="font-mono text-[13px] tabular-nums">
-                    {row.id}
+                    {row.gatewayRequestId ?? row.id}
                   </span>
                 </DetailRow>
                 {row.providerRequestId ? (
@@ -424,6 +487,180 @@ export default function CallDetailDrawer({
                 <DetailRow label="Time">
                   {formatTimestamp(row.timestamp)}
                 </DetailRow>
+                {row.recordKind === "usage" && (
+                  <p className="mt-4 text-xs text-fg-muted">
+                    Usage-only record. Execution outcome and submitted arguments
+                    were not captured.
+                  </p>
+                )}
+                {detailLoading && (
+                  <p role="status" className="mt-4 text-xs text-fg-muted">
+                    Loading run details…
+                  </p>
+                )}
+                {detailError && (
+                  <p role="alert" className="mt-4 text-xs text-fg-muted">
+                    {detailError}{" "}
+                    <button
+                      type="button"
+                      onClick={onRetryDetail}
+                      className="underline"
+                    >
+                      Retry
+                    </button>
+                  </p>
+                )}
+                {activeDetail && (
+                  <>
+                    <DetailRow label="Run">
+                      <span className="break-all font-mono text-xs">
+                        {activeDetail.id}
+                      </span>
+                    </DetailRow>
+                    {activeDetail.assets.length > 0 && (
+                      <div className="mt-4 space-y-2">
+                        <p className="text-xs text-fg-muted">Assets</p>
+                        {activeDetail.assets.map((item, index) => (
+                          <div
+                            key={item.id}
+                            className="flex flex-wrap items-center gap-2 text-xs"
+                          >
+                            <button
+                              type="button"
+                              aria-pressed={asset?.id === item.id}
+                              onClick={() =>
+                                setSelectedAsset({
+                                  runId: activeDetail.id,
+                                  id: item.id,
+                                })
+                              }
+                              className="rounded bg-foreground/3 px-2 py-1"
+                            >
+                              Output {index + 1}
+                            </button>
+                            {safeMediaUrl(item.url) && (
+                              <a
+                                href={safeMediaUrl(item.url)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="underline"
+                              >
+                                Open media
+                              </a>
+                            )}
+                            {item.hiddenAt && (
+                              <span className="text-fg-muted">
+                                Hidden from library
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                        {asset?.expiresAt && (
+                          <p className="text-xs text-fg-muted">
+                            Provider expiry: {formatTimestamp(asset.expiresAt)}
+                          </p>
+                        )}
+                        {asset?.unavailableAt && (
+                          <p className="text-xs text-fg-muted">
+                            Media unavailable; reference retained.
+                          </p>
+                        )}
+                      </div>
+                    )}
+                    {activeDetail.events.some(
+                      (event) => event.metadata.kind === "billing_usage"
+                    ) && (
+                      <details className="mt-5 text-xs" open>
+                        <summary className="cursor-pointer font-medium">
+                          Observed usage
+                        </summary>
+                        <p className="mt-2 text-fg-muted">
+                          Billing receipts matched by gateway ID, not additional
+                          executions. These may not represent the final total.
+                        </p>
+                        <ul className="mt-2 space-y-2">
+                          {activeDetail.events
+                            .filter(
+                              (event) => event.metadata.kind === "billing_usage"
+                            )
+                            .map((event) => (
+                              <li key={event.id} className="break-all">
+                                {typeof event.metadata.networkFeeUsdMicros ===
+                                "string"
+                                  ? requestFeeDisplay({
+                                      networkFeeUsdMicros:
+                                        event.metadata.networkFeeUsdMicros,
+                                      feeWei:
+                                        typeof event.metadata.feeWei ===
+                                        "string"
+                                          ? event.metadata.feeWei
+                                          : undefined,
+                                      ethUsdPrice:
+                                        typeof event.metadata.ethUsdPrice ===
+                                        "string"
+                                          ? event.metadata.ethUsdPrice
+                                          : undefined,
+                                    }).exact
+                                  : "Amount unavailable"}{" "}
+                                · {formatTimestamp(event.createdAt)}
+                              </li>
+                            ))}
+                        </ul>
+                      </details>
+                    )}
+                    <details className="mt-5 text-xs" open>
+                      <summary className="cursor-pointer font-medium">
+                        Submitted JSON
+                      </summary>
+                      <JsonPreview
+                        value={
+                          activeDetail.submittedArguments ?? {
+                            capture: "not_available",
+                          }
+                        }
+                      />
+                    </details>
+                    {activeDetail.captureRedactedPaths.length > 0 && (
+                      <p className="mt-2 break-words text-xs text-fg-muted">
+                        Redacted or omitted:{" "}
+                        {activeDetail.captureRedactedPaths.join(", ")}
+                      </p>
+                    )}
+                    <details className="mt-5 text-xs">
+                      <summary className="cursor-pointer font-medium">
+                        Returned JSON
+                      </summary>
+                      <JsonPreview
+                        value={
+                          activeDetail.result ?? { capture: "not_available" }
+                        }
+                      />
+                    </details>
+                    {activeDetail.errorCode && (
+                      <p className="mt-4 break-words text-xs text-fg-muted">
+                        {activeDetail.errorCode}
+                        {activeDetail.errorMessage
+                          ? `: ${activeDetail.errorMessage}`
+                          : ""}
+                      </p>
+                    )}
+                    <details className="mt-5 text-xs">
+                      <summary className="cursor-pointer font-medium">
+                        Run timeline
+                      </summary>
+                      <ol className="mt-2 space-y-2">
+                        {activeDetail.events.map((event) => (
+                          <li key={event.id}>
+                            {event.metadata.kind === "billing_usage"
+                              ? "Usage receipt recorded"
+                              : event.status}{" "}
+                            · {formatTimestamp(event.createdAt)}
+                          </li>
+                        ))}
+                      </ol>
+                    </details>
+                  </>
+                )}
               </dl>
             </aside>
           </div>

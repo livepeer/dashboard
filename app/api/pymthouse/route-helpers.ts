@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { PmtHouseError } from "@pymthouse/builder-sdk";
 import { SessionRequiredError } from "@/lib/console/session-user";
+import { AccessError } from "@/lib/access/service";
 
 export const PYMTHOUSE_NO_STORE_HEADERS = {
   "Cache-Control": "no-store, max-age=0",
@@ -10,7 +11,7 @@ export function pymthouseErrorResponse(
   error: unknown,
   fallback: string
 ): NextResponse {
-  if (error instanceof SessionRequiredError) {
+  if (error instanceof SessionRequiredError || error instanceof AccessError) {
     return NextResponse.json(
       { error: error.message, code: error.code },
       { status: error.status, headers: PYMTHOUSE_NO_STORE_HEADERS }

@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "./waitlist.css";
 
 /* Custom variant: targets descendants of html[data-theme="light"].
    Use as `light:bg-foo` to override values when the page theme is light. */
@@ -38,7 +40,8 @@
   );
 
   --font-inter: InterVariable, Inter, ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Favorit", "Favorit Pro", var(--font-inter), sans-serif;
+  --font-display:
+    var(--font-favorit, "Favorit"), "Favorit Pro", var(--font-inter), sans-serif;
   --font-heading: var(--font-inter), Inter, sans-serif;
   --font-sans: var(--font-inter), Inter, ui-sans-serif, system-ui, sans-serif;
   --font-mono: "Favorit Mono", ui-monospace, monospace;
@@ -572,7 +575,8 @@ textarea:-webkit-autofill {
 
 @theme inline {
   --font-inter: InterVariable, Inter, ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Favorit", "Favorit Pro", var(--font-inter), sans-serif;
+  --font-display:
+    var(--font-favorit, "Favorit"), "Favorit Pro", var(--font-inter), sans-serif;
   --font-heading: var(--font-inter), Inter, sans-serif;
   --font-sans: var(--font-inter), Inter, ui-sans-serif, system-ui, sans-serif;
   --font-mono: "Favorit Mono", ui-monospace, monospace;
@@ -634,17 +638,17 @@ textarea:-webkit-autofill {
   --text-display-sm: 36px;
   --text-display-sm--line-height: 0.98;
   --text-display-sm--font-weight: 300;
-  --text-display-sm--letter-spacing: 0;
+  --text-display-sm--letter-spacing: var(--display-tracking, 0);
   --text-display-md: 48px;
   --text-display-md--line-height: 0.98;
   --text-display-md--font-weight: 300;
-  --text-display-md--letter-spacing: 0;
+  --text-display-md--letter-spacing: var(--display-tracking, 0);
   --text-display-lg: 60px;
   --text-display-lg--line-height: 0.98;
   --text-display-lg--font-weight: 300;
-  --text-display-lg--letter-spacing: 0;
+  --text-display-lg--letter-spacing: var(--display-tracking, 0);
   --text-display-fluid: 64px;
   --text-display-fluid--line-height: 0.98;
   --text-display-fluid--font-weight: 300;
-  --text-display-fluid--letter-spacing: 0;
+  --text-display-fluid--letter-spacing: var(--display-tracking, 0);
 }

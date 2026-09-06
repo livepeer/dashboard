@@ -8,6 +8,10 @@ import {
   readPymthouseM2mConfig,
   readPublicClientId,
 } from "@/lib/console/pymthouse-http";
+import { verifyMcpUserJwt } from "@/lib/mcp/jwt";
+import { requireApprovedMcpAccount } from "@/lib/mcp/access";
+import { AccessError } from "@/lib/access/service";
+import { billingAppMismatch } from "@/lib/console/mcp-oauth-login-bridge";
 
 const TOKEN_EXCHANGE_GRANT = "urn:ietf:params:oauth:grant-type:token-exchange";
 const ACCESS_TOKEN_TYPE = "urn:ietf:params:oauth:token-type:access_token";
@@ -110,6 +114,23 @@ async function exchangeApiKeyViaOidcToken(input: {
     });
   }
 
+  // The issuer is the only authority for opaque API-key ownership. Never expose
+  // its exchanged credentials before verifying their signed app-bound owner.
+  let principal;
+  try {
+    principal = await verifyMcpUserJwt(accessToken);
+  } catch (error) {
+    if (error instanceof AccessError) throw error;
+    throw new PmtHouseError(
+      "Token exchange did not establish a verified account",
+      {
+        status: 401,
+        code: "invalid_exchange_identity",
+      }
+    );
+  }
+  await requireApprovedMcpAccount(principal.externalUserId);
+
   // signer_url comes from the issuer exchange response (app signer routing).
   const signerUrl = readStringField(parsed, "signer_url");
 
@@ -137,6 +158,15 @@ async function exchangeApiKeyViaOidcToken(input: {
 }
 
 function errorResponse(error: unknown): Response {
+  if (error instanceof AccessError) {
+    return Response.json(
+      { error: error.code, error_description: error.message },
+      {
+        status: error.status,
+        headers: { "Cache-Control": "no-store" },
+      }
+    );
+  }
   if (error instanceof PmtHouseError) {
     return Response.json(
       {
@@ -155,6 +185,13 @@ function errorResponse(error: unknown): Response {
 }
 
 export async function POST(request: Request) {
+  const mismatch = billingAppMismatch();
+  if (mismatch) {
+    return Response.json(mismatch, {
+      status: 503,
+      headers: { "Cache-Control": "no-store" },
+    });
+  }
   const config = readApiKeyExchangeConfig();
   if (!config) {
     return Response.json(

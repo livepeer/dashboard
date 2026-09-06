@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { auth0 } from "@/lib/auth0";
-import { externalUserIdFromSub } from "@/lib/console/external-user-id";
+import {
+  requireConsoleSession,
+  SessionRequiredError,
+} from "@/lib/console/session-user";
 import {
   issueAuthCode,
   parsePending,
   PKCE_COOKIE,
-  pkceCookieOptions
+  pkceCookieOptions,
 } from "@/lib/mcp/as";
 
 export const runtime = "nodejs";
@@ -22,24 +24,36 @@ export async function GET(req: NextRequest) {
     return clear;
   }
 
-  const session = await auth0.getSession();
-  const sub = session?.user?.sub?.trim();
-  if (!session || !sub) {
-    const login = new URL("/auth/login", origin);
-    login.searchParams.set("returnTo", "/api/mcp/oauth/callback");
-    return NextResponse.redirect(login);
+  let session;
+  try {
+    session = await requireConsoleSession();
+  } catch (error) {
+    if (error instanceof SessionRequiredError) {
+      const login = new URL("/auth/login", origin);
+      login.searchParams.set("returnTo", "/api/mcp/oauth/callback");
+      return NextResponse.redirect(login);
+    }
+    // This endpoint is a browser handoff, not a token API. Explain admission
+    // failure on the waiting page, and terminate rather than issue a code.
+    const response = NextResponse.redirect(
+      new URL("/access-pending?from=mcp", origin),
+      302
+    );
+    response.headers.set("Cache-Control", "no-store");
+    response.cookies.set(PKCE_COOKIE, "", {
+      ...pkceCookieOptions(),
+      maxAge: 0,
+    });
+    return response;
   }
-
-  const externalUserId = await externalUserIdFromSub(sub);
-  const email = session.user.email?.trim();
   let code: string;
   try {
     code = issueAuthCode({
       redirectUri: pending.redirectUri,
       codeChallenge: pending.codeChallenge,
       clientId: pending.clientId,
-      externalUserId,
-      email: email || undefined
+      externalUserId: session.externalUserId,
+      email: session.email,
     });
   } catch {
     return clear;

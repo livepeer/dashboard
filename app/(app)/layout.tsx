@@ -7,10 +7,9 @@ import ConsoleSidebar from "@/components/console/ConsoleSidebar";
 import KeyboardShortcuts from "@/components/console/KeyboardShortcuts";
 
 // FOUT prevention — runs synchronously in the document, before the console
-// subtree paints. Theme is system-only, so first paint follows the OS
-// `prefers-color-scheme` result directly; ThemeProvider keeps it in sync after
-// hydration.
-const THEME_INIT_SCRIPT = `(function(){try{document.documentElement.dataset.theme=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}catch(e){document.documentElement.dataset.theme='dark';}})();`;
+// subtree paints. Restore the saved preference, or follow the OS for system
+// mode; ThemeProvider keeps it in sync after hydration.
+const THEME_INIT_SCRIPT = `(function(){var p='system';try{var s=localStorage.getItem('theme');if(s==='light'||s==='dark')p=s;}catch(e){}try{document.documentElement.dataset.theme=p==='system'?(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):p;}catch(e){document.documentElement.dataset.theme='dark';}})();`;
 
 export const metadata: Metadata = {
   title: "Livepeer Early Access",

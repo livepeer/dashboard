@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { auth0 } from "@/lib/auth0";
+import { getAuthenticatedIdentity } from "@/lib/authentication/session";
 import { safeReturnTo } from "@/lib/console/auth-login";
 import LoginPage from "@/components/console/LoginPage";
+import { identitySyncPath } from "@/lib/identity/sync-return";
 
 export const metadata: Metadata = {
   title: "Sign up — Livepeer Early Access",
@@ -15,7 +16,7 @@ export default async function SignupRoute({
 }) {
   const params = await searchParams;
   const returnTo = safeReturnTo(params.returnTo);
-  const session = await auth0.getSession();
-  if (session) redirect(returnTo);
+  const identity = await getAuthenticatedIdentity();
+  if (identity) redirect(identitySyncPath(returnTo));
   return <LoginPage mode="signup" returnTo={returnTo} />;
 }

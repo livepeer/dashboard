@@ -1,25 +1,15 @@
-"use client";
+import { redirect } from "next/navigation";
+import { identitySyncPath } from "@/lib/identity/sync-return";
 
-import { useEffect } from "react";
-import { useAuth } from "@/components/console/AuthContext";
-import { AUTH_SIGNIN_HREF } from "@/lib/console/auth-login";
+export const dynamic = "force-dynamic";
 
-// Root `/`:
-//   - signed in  → redirect to /home (the console default)
-//   - signed out → /login
-export default function RootPage() {
-  const { isConnected, isLoading, user } = useAuth();
-
-  const signedIn = isConnected && !!user;
-
-  useEffect(() => {
-    if (isLoading) return;
-    if (signedIn) {
-      window.location.replace("/home");
-      return;
-    }
-    window.location.replace(AUTH_SIGNIN_HREF);
-  }, [isLoading, signedIn]);
-
-  return null;
+export default async function RootPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ ref?: string }>;
+}) {
+  const params = await searchParams;
+  if (params.ref?.trim())
+    redirect(`/waitlist?ref=${encodeURIComponent(params.ref.trim())}`);
+  redirect(identitySyncPath("/home"));
 }

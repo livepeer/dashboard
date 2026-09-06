@@ -32,24 +32,29 @@ export default function DeviceApproveForm({
   async function approve() {
     setError("");
     setPhase("submitting");
-    const response = await fetch("/api/v1/auth/device/approve", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        iss,
-        target_link_uri: targetLinkUri,
-      }),
-    });
-    const json = (await response.json()) as {
-      ok?: boolean;
-      error?: string;
-    };
-    if (!response.ok || !json.ok) {
+    try {
+      const response = await fetch("/api/v1/auth/device/approve", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          iss,
+          target_link_uri: targetLinkUri,
+        }),
+      });
+      const json = (await response.json()) as {
+        ok?: boolean;
+        error?: string;
+      };
+      if (!response.ok || !json.ok) {
+        setPhase("error");
+        setError(json.error ?? "Approval failed");
+        return;
+      }
+      setPhase("ok");
+    } catch {
       setPhase("error");
-      setError(json.error ?? "Approval failed");
-      return;
+      setError("We couldn’t confirm device approval. Please try again.");
     }
-    setPhase("ok");
   }
 
   if (phase === "ok") {
@@ -78,7 +83,11 @@ export default function DeviceApproveForm({
       >
         {phase === "submitting" ? "Approving…" : "Approve device"}
       </Button>
-      {error ? <p className="text-sm text-red-400">{error}</p> : null}
+      {error ? (
+        <p role="alert" className="text-sm text-red-400">
+          {error}
+        </p>
+      ) : null}
     </div>
   );
 }

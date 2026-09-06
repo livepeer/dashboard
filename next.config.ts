@@ -1,6 +1,10 @@
 import type { NextConfig } from "next";
 
+const posthogProxyPath = "/lpx";
+
 const nextConfig: NextConfig = {
+  // Keep production-build checks separate from a running local dev server.
+  distDir: process.env.CONSOLE_DIST_DIR || ".next",
   allowedDevOrigins: ["studio.tail0de21e.ts.net"],
   // Bundler-agnostic polling interval for file watching — works with both
   // Turbopack (default in Next 15) and Webpack. Needed because the native
@@ -19,6 +23,23 @@ const nextConfig: NextConfig = {
     };
     return config;
   },
+  async rewrites() {
+    return [
+      {
+        source: `${posthogProxyPath}/static/:path*`,
+        destination: "https://us-assets.i.posthog.com/static/:path*",
+      },
+      {
+        source: `${posthogProxyPath}/array/:path*`,
+        destination: "https://us-assets.i.posthog.com/array/:path*",
+      },
+      {
+        source: `${posthogProxyPath}/:path*`,
+        destination: "https://us.i.posthog.com/:path*",
+      },
+    ];
+  },
+  skipTrailingSlashRedirect: true,
   async redirects() {
     return [
       // Catalog renamed: a published app's consumer page moved from

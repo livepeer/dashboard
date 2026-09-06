@@ -1,8 +1,11 @@
+import { identitySyncPath } from "@/lib/identity/sync-return";
+
 /** SDK login route. Must be a full navigation (`<a>` / `location.assign`),
  *  not a Next.js client transition — middleware mounts `/auth/*`. */
 export const AUTH_LOGIN_PATH = "/auth/login";
 
 const DEFAULT_RETURN_TO = "/home";
+const INTERNAL_ORIGIN = "http://console.internal";
 
 /** Same-origin relative path only. Rejects protocol-relative and absolute URLs. */
 export function safeReturnTo(
@@ -10,8 +13,15 @@ export function safeReturnTo(
   fallback = DEFAULT_RETURN_TO
 ): string {
   const trimmed = value?.trim() ?? "";
-  if (!trimmed.startsWith("/") || trimmed.startsWith("//")) return fallback;
-  return trimmed;
+  if (!trimmed.startsWith("/")) return fallback;
+  try {
+    const resolved = new URL(trimmed, INTERNAL_ORIGIN);
+    return resolved.origin === INTERNAL_ORIGIN
+      ? `${resolved.pathname}${resolved.search}${resolved.hash}`
+      : fallback;
+  } catch {
+    return fallback;
+  }
 }
 
 export function isConsoleAuthPath(pathname: string): boolean {
@@ -30,7 +40,8 @@ export function authLoginHref(options?: {
 }): string {
   const params = new URLSearchParams();
   if (options?.signup) params.set("screen_hint", "signup");
-  params.set("returnTo", safeReturnTo(options?.returnTo));
+  const returnTo = safeReturnTo(options?.returnTo);
+  params.set("returnTo", identitySyncPath(returnTo));
   if (options?.loginHint) params.set("login_hint", options.loginHint);
   if (options?.connection) params.set("connection", options.connection);
   return `${AUTH_LOGIN_PATH}?${params.toString()}`;

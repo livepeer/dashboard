@@ -1,0 +1,327 @@
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme inline {
+  --color-inverse-foreground: var(--inverse-foreground);
+  --color-inverse-background: var(--inverse-background);
+  --text-ui-caption: 0.75rem;
+  --text-ui-caption--line-height: 1rem;
+  --text-ui-caption--font-weight: 500;
+  --text-ui-body: 0.875rem;
+  --text-ui-body--line-height: 1.25rem;
+  --text-ui-body--font-weight: 400;
+  --text-display-sm: 2.25rem;
+  --text-display-sm--line-height: 0.98;
+  --text-display-sm--letter-spacing: -0.045em;
+  --text-display-sm--font-weight: 300;
+  --text-display-md: 3rem;
+  --text-display-md--line-height: 0.98;
+  --text-display-md--letter-spacing: -0.045em;
+  --text-display-md--font-weight: 300;
+  --text-display-lg: 3.75rem;
+  --text-display-lg--line-height: 0.98;
+  --text-display-lg--letter-spacing: -0.045em;
+  --text-display-lg--font-weight: 300;
+  --text-display-fluid: clamp(2.5rem, 4.5vw, 4rem);
+  --text-display-fluid--line-height: 0.98;
+  --text-display-fluid--letter-spacing: -0.045em;
+  --text-display-fluid--font-weight: 300;
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+}
+
+.waitlist-surface {
+  /* Preserve the source waitlist's display tracking within shared utilities. */
+  --display-tracking: -0.045em;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --inverse-background: oklch(0 0 0);
+  --inverse-foreground: oklch(1 0 0);
+  --radius: 0.625rem;
+  min-height: 100dvh;
+  background: var(--background);
+  color: var(--foreground);
+}
+
+.waitlist-surface .dark,
+.waitlist-surface.dark {
+  --background: oklch(0 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.16 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --inverse-background: oklch(1 0 0);
+  --inverse-foreground: oklch(0 0 0);
+}
+
+.input-size-xs::placeholder {
+  font-size: 0.75rem;
+}
+
+.animated-emerald-radial-frame {
+  background-color: #059669;
+}
+
+.animated-emerald-radial-frame::before {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  content: "";
+  background-image:
+    radial-gradient(circle at 18% 18%, #a7f3d0 0%, transparent 34%),
+    radial-gradient(circle at 82% 28%, #34d399 0%, transparent 42%),
+    linear-gradient(135deg, #047857 0%, #10b981 38%, #6ee7b7 66%, #059669 100%);
+  background-position: 0% 0%;
+  background-size: 180% 180%;
+  filter: saturate(1.18) contrast(1.08);
+  animation: emerald-radial-drift 5.5s ease-in-out infinite alternate;
+}
+
+@keyframes emerald-radial-drift {
+  from {
+    background-position: 0% 0%;
+  }
+  50% {
+    background-position: 100% 45%;
+  }
+  to {
+    background-position: 20% 100%;
+  }
+}
+
+@keyframes input-bump {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-4px);
+  }
+  50% {
+    transform: translateX(4px);
+  }
+  75% {
+    transform: translateX(-2px);
+  }
+}
+
+.animate-input-bump {
+  animation: input-bump 280ms ease-out;
+}
+
+@layer utilities {
+  @keyframes scene-frame-exit-up {
+    0%,
+    8% {
+      clip-path: inset(0 0 0 0 round var(--scene-frame-radius));
+    }
+    48%,
+    100% {
+      clip-path: inset(0 0 100% 0 round var(--scene-frame-radius));
+    }
+  }
+  @keyframes scene-frame-exit-down {
+    0%,
+    8% {
+      clip-path: inset(0 0 0 0 round var(--scene-frame-radius));
+    }
+    48%,
+    100% {
+      clip-path: inset(100% 0 0 0 round var(--scene-frame-radius));
+    }
+  }
+  @keyframes scene-frame-reveal-up {
+    0%,
+    12% {
+      clip-path: inset(100% 0 0 0 round var(--scene-frame-radius));
+    }
+    92%,
+    100% {
+      clip-path: inset(0 0 0 0 round var(--scene-frame-radius));
+    }
+  }
+  @keyframes scene-frame-reveal-down {
+    0%,
+    12% {
+      clip-path: inset(0 0 100% 0 round var(--scene-frame-radius));
+    }
+    92%,
+    100% {
+      clip-path: inset(0 0 0 0 round var(--scene-frame-radius));
+    }
+  }
+  @keyframes scene-frame-reveal-up-synced {
+    0%,
+    48% {
+      clip-path: inset(100% 0 0 0 round var(--scene-frame-radius));
+    }
+    92%,
+    100% {
+      clip-path: inset(0 0 0 0 round var(--scene-frame-radius));
+    }
+  }
+  @keyframes scene-frame-reveal-down-synced {
+    0%,
+    48% {
+      clip-path: inset(0 0 100% 0 round var(--scene-frame-radius));
+    }
+    92%,
+    100% {
+      clip-path: inset(0 0 0 0 round var(--scene-frame-radius));
+    }
+  }
+  @keyframes scene-content-exit-up {
+    0%,
+    8% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    48%,
+    100% {
+      opacity: 0;
+      transform: translateY(clamp(-5rem, -7svh, -3rem));
+    }
+  }
+  @keyframes scene-content-enter-down {
+    0%,
+    48% {
+      opacity: 0;
+      transform: translateY(clamp(3rem, 7svh, 5rem));
+    }
+    92%,
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @keyframes scene-content-exit-down {
+    0%,
+    8% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    48%,
+    100% {
+      opacity: 0;
+      transform: translateY(clamp(3rem, 7svh, 5rem));
+    }
+  }
+  @keyframes scene-content-enter-up {
+    0%,
+    48% {
+      opacity: 0;
+      transform: translateY(clamp(-5rem, -7svh, -3rem));
+    }
+    92%,
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @keyframes lock-submitted-email {
+    from {
+      width: min(60vw, 22rem);
+    }
+    to {
+      width: var(--submitted-email-width);
+    }
+  }
+
+  .animate-lock-submitted-email {
+    width: var(--submitted-email-width);
+    animation: lock-submitted-email 360ms cubic-bezier(0.32, 0.72, 0, 1) both;
+  }
+
+  .animate-scene-frame-exit-up,
+  .animate-scene-frame-exit-down,
+  .animate-scene-frame-reveal-up,
+  .animate-scene-frame-reveal-down,
+  .animate-scene-frame-reveal-up-synced,
+  .animate-scene-frame-reveal-down-synced,
+  .animate-scene-content-exit-up,
+  .animate-scene-content-enter-down,
+  .animate-scene-content-exit-down,
+  .animate-scene-content-enter-up {
+    animation-duration: 760ms;
+    animation-timing-function: cubic-bezier(0.65, 0, 0.35, 1);
+    animation-fill-mode: both;
+  }
+
+  .animate-scene-frame-exit-up {
+    animation-name: scene-frame-exit-up;
+  }
+  .animate-scene-frame-exit-down {
+    animation-name: scene-frame-exit-down;
+  }
+  .animate-scene-frame-reveal-up {
+    animation-name: scene-frame-reveal-up;
+  }
+  .animate-scene-frame-reveal-down {
+    animation-name: scene-frame-reveal-down;
+  }
+  .animate-scene-frame-reveal-up-synced {
+    animation-name: scene-frame-reveal-up-synced;
+  }
+  .animate-scene-frame-reveal-down-synced {
+    animation-name: scene-frame-reveal-down-synced;
+  }
+  .animate-scene-content-exit-up {
+    animation-name: scene-content-exit-up;
+  }
+  .animate-scene-content-enter-down {
+    animation-name: scene-content-enter-down;
+  }
+  .animate-scene-content-exit-down {
+    animation-name: scene-content-exit-down;
+  }
+  .animate-scene-content-enter-up {
+    animation-name: scene-content-enter-up;
+  }
+
+  .font-identifier {
+    font-feature-settings:
+      "liga" 0,
+      "calt" 0;
+    font-variant-ligatures: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animated-emerald-radial-frame::before,
+  .animate-input-bump,
+  .animate-lock-submitted-email,
+  [class*="animate-scene-"] {
+    animation: none;
+  }
+}

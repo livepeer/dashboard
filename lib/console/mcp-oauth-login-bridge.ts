@@ -25,7 +25,9 @@ function verifySignedPayload(value: string): string | null {
   if (dot <= 0) return null;
   const payload = value.slice(0, dot);
   const sig = value.slice(dot + 1);
-  const expected = createHmac("sha256", secret).update(payload).digest("base64url");
+  const expected = createHmac("sha256", secret)
+    .update(payload)
+    .digest("base64url");
   const left = Buffer.from(sig);
   const right = Buffer.from(expected);
   if (left.length !== right.length || !timingSafeEqual(left, right)) {
@@ -41,14 +43,16 @@ export function issueMcpRefreshToken(externalUserId: string): string {
   const payload = Buffer.from(
     JSON.stringify({
       eu: externalUserId,
-      exp: Date.now() + REFRESH_TTL_MS
+      exp: Date.now() + REFRESH_TTL_MS,
     }),
     "utf8"
   ).toString("base64url");
   return `${MCP_REFRESH_PREFIX}${signPayload(payload)}`;
 }
 
-export function redeemMcpRefreshToken(token: string | undefined): string | null {
+export function redeemMcpRefreshToken(
+  token: string | undefined
+): string | null {
   const trimmed = token?.trim() ?? "";
   if (!trimmed.startsWith(MCP_REFRESH_PREFIX)) return null;
   const signed = trimmed.slice(MCP_REFRESH_PREFIX.length);
@@ -73,7 +77,9 @@ export function redeemMcpRefreshToken(token: string | undefined): string | null 
   }
 }
 
-export const RS2_TEST_BILLING_APP_ID = "app_98575870d7ae33589a3f0660";
+export const STAGING_BILLING_APP_ID = "app_088f2082a8f1161d60179431";
+export const STAGING_BILLING_ISSUER =
+  "https://staging.pymthouse.com/api/v1/oidc";
 
 export function billingAppMismatch(): {
   error: string;
@@ -83,11 +89,16 @@ export function billingAppMismatch(): {
     return null;
   }
   const publicClientId = process.env.PYMTHOUSE_PUBLIC_CLIENT_ID?.trim() ?? "";
-  if (publicClientId === RS2_TEST_BILLING_APP_ID) {
+  const issuer = process.env.PYMTHOUSE_ISSUER_URL?.trim().replace(/\/+$/, "");
+  if (
+    publicClientId === STAGING_BILLING_APP_ID &&
+    issuer === STAGING_BILLING_ISSUER
+  ) {
     return null;
   }
   return {
     error: "billing_app_mismatch",
-    error_description: `Non-prod mint requires PYMTHOUSE_PUBLIC_CLIENT_ID=${RS2_TEST_BILLING_APP_ID}`
+    error_description:
+      "Non-production mint requires the isolated staging PymtHouse issuer and app",
   };
 }

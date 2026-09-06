@@ -2,8 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Copy } from "lucide-react";
-import { toast } from "sonner";
+import { ReferralCard } from "@/components/console/ReferralCard";
 import CallsSection from "@/components/console/CallsSection";
 import SectionHeader from "@/components/console/SectionHeader";
 import Button from "@/components/design-system/Button";
@@ -58,12 +57,6 @@ function referralUrlFor(user: ConsoleUser): string {
   return `${new URL(MCP_SERVER_URL).origin}?ref=${encodeURIComponent(user.id)}`;
 }
 
-function copyReferralUrl(referralUrl: string) {
-  void navigator.clipboard.writeText(referralUrl).then(() => {
-    toast("copied to clipboard");
-  });
-}
-
 function HomePromoCards({
   user,
   className = "px-3 pt-3 md:px-7 md:pt-7",
@@ -98,34 +91,7 @@ function HomePromoCards({
           </span>
         </Link>
 
-        {user && (
-          <button
-            type="button"
-            onClick={() => copyReferralUrl(referralUrl)}
-            aria-label="Copy referral link"
-            className="flex aspect-video flex-col rounded-sm border p-3 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
-            style={{
-              borderColor:
-                "color-mix(in oklch, var(--background) 86%, var(--foreground) 14%)",
-              background:
-                "linear-gradient(135deg, color-mix(in oklch, var(--background) 96%, var(--foreground) 4%) 0%, color-mix(in oklch, var(--background) 94%, var(--foreground) 6%) 42%, color-mix(in oklch, var(--background) 90%, var(--foreground) 10%) 100%)",
-            }}
-          >
-            <p className="text-ui-caption font-medium text-foreground">
-              Refer a friend
-            </p>
-            <div className="mt-auto flex min-w-0 items-center gap-2">
-              <code
-                title={referralUrl}
-                dir="rtl"
-                className="min-w-0 flex-1 truncate text-left font-sans text-[11.5px] leading-4 text-muted-foreground"
-              >
-                {referralUrl}
-              </code>
-              <Copy className="h-3 w-3 shrink-0 text-fg-muted" aria-hidden="true" />
-            </div>
-          </button>
-        )}
+        {user && <ReferralCard referralUrl={referralUrl} />}
       </div>
     </section>
   );
@@ -186,7 +152,7 @@ function Instrument({
     <section className={className} aria-label="Balance">
       {heading}
       <div
-        className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1"
+        className="flex items-baseline gap-x-2.5 whitespace-nowrap"
         aria-label={
           runway
             ? `${fmtUsd(remaining)} remaining of ${fmtUsd(issuedTotal)} total issued`
@@ -240,15 +206,17 @@ export default function UsageView() {
 
   return (
     <div className="w-full pb-20">
-      <div className="mb-8 grid grid-cols-1 gap-8 px-3 pt-3 md:px-7 md:pt-7 lg:grid-cols-3 lg:items-start lg:gap-3">
+      {/* Intrinsic balance width determines the wrap point, not a viewport
+          breakpoint. Keep top padding constant when the cards move below. */}
+      <div className="mb-8 flex flex-wrap items-start gap-x-3 gap-y-8 px-3 pt-7 md:px-7">
         <Instrument
           loading={loading}
           runway={runway}
-          className="order-1 py-4 lg:order-none lg:py-0"
+          className="min-w-max grow basis-[calc((100%_-_0.75rem)/3)]"
         />
         <HomePromoCards
           user={user}
-          className="order-2 lg:order-none lg:col-span-2"
+          className="min-w-0 grow-[2] basis-[calc((100%_-_0.75rem)*2/3)]"
           gridClassName="grid w-full grid-cols-2 gap-3"
         />
       </div>

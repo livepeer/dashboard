@@ -26,6 +26,10 @@ const STATUS_LABEL: Record<AccountActivityStatus, string> = {
   success: "Succeeded",
   failed: "Failed",
   timeout: "Timed out",
+  queued: "Queued",
+  running: "Running",
+  cancelled: "Cancelled",
+  unknown: "Unknown",
 };
 
 const IMAGE_EXT = new Set(["avif", "bmp", "gif", "jpeg", "jpg", "png", "webp"]);

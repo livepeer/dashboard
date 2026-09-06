@@ -78,7 +78,8 @@ export function isAllowedClientRedirectUri(redirectUri: string): boolean {
  * Registered vs requested redirect. HTTPS / custom-scheme stays exact.
  * Loopback follows RFC 8252 §7.3 (any port) and treats 127.0.0.1 / localhost
  * / ::1 as the same host so Codex DCR/authorize host swaps still match.
- * Registration only — the token endpoint compares `redirect_uri` exactly.
+ * Also used during token redemption for native-client compatibility. This
+ * loopback exception is tracked as production-hold review finding SEC-04.
  */
 export function redirectUrisMatch(
   registered: string,

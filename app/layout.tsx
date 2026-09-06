@@ -44,9 +44,9 @@ export const metadata: Metadata = {
 };
 
 // FOUT prevention — runs synchronously before paint so dual-source CSS
-// variables resolve from the OS theme immediately. ThemeProvider in the
+// variables resolve from the saved preference or OS theme immediately. ThemeProvider in the
 // console layout keeps this in sync after hydration.
-const THEME_INIT_SCRIPT = `(function(){try{document.documentElement.dataset.theme=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}catch(e){document.documentElement.dataset.theme='dark';}})();`;
+const THEME_INIT_SCRIPT = `(function(){var p='system';try{var s=localStorage.getItem('theme');if(s==='light'||s==='dark')p=s;}catch(e){}try{document.documentElement.dataset.theme=p==='system'?(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):p;}catch(e){document.documentElement.dataset.theme='dark';}})();`;
 const TOASTER_STYLE = { "--width": "max-content" } as CSSProperties;
 
 export default function RootLayout({

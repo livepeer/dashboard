@@ -20,6 +20,7 @@ test("safeReturnTo allows same-origin relative paths", () => {
 test("safeReturnTo rejects absolute and protocol-relative URLs", () => {
   assert.equal(safeReturnTo("https://evil.example/phish"), "/home");
   assert.equal(safeReturnTo("//evil.example"), "/home");
+  assert.equal(safeReturnTo("/\\evil.example"), "/home");
   assert.equal(safeReturnTo("https://evil.example"), "/home");
   assert.equal(safeReturnTo(""), "/home");
   assert.equal(safeReturnTo(undefined), "/home");
@@ -28,22 +29,25 @@ test("safeReturnTo rejects absolute and protocol-relative URLs", () => {
 });
 
 test("authLoginHref is the Auth0 SDK handoff", () => {
-  assert.equal(authLoginHref(), "/auth/login?returnTo=%2Fhome");
+  assert.equal(
+    authLoginHref(),
+    "/auth/login?returnTo=%2Fapi%2Fidentity%2Fsync%3FreturnTo%3D%252Fhome"
+  );
   assert.equal(
     authLoginHref({ signup: true }),
-    "/auth/login?screen_hint=signup&returnTo=%2Fhome"
+    "/auth/login?screen_hint=signup&returnTo=%2Fapi%2Fidentity%2Fsync%3FreturnTo%3D%252Fhome"
   );
   assert.equal(
     authLoginHref({ returnTo: "/waitlist", loginHint: "a@b.com" }),
-    "/auth/login?returnTo=%2Fwaitlist&login_hint=a%40b.com"
+    "/auth/login?returnTo=%2Fapi%2Fidentity%2Fsync%3FreturnTo%3D%252Fwaitlist&login_hint=a%40b.com"
   );
   assert.equal(
     authLoginHref({ connection: "google-oauth2", returnTo: "//evil.example" }),
-    "/auth/login?returnTo=%2Fhome&connection=google-oauth2"
+    "/auth/login?returnTo=%2Fapi%2Fidentity%2Fsync%3FreturnTo%3D%252Fhome&connection=google-oauth2"
   );
   assert.equal(
     authLoginHref({ connection: "github", signup: true }),
-    "/auth/login?screen_hint=signup&returnTo=%2Fhome&connection=github"
+    "/auth/login?screen_hint=signup&returnTo=%2Fapi%2Fidentity%2Fsync%3FreturnTo%3D%252Fhome&connection=github"
   );
 });
 

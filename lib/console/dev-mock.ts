@@ -484,6 +484,16 @@ export function devMockResponse(
   search: URLSearchParams,
   requestUrl: string
 ): Response | null {
+  if (pathname === "/api/console/session") {
+    return json({
+      userId: "00000000-0000-4000-8000-000000000001",
+      externalUserId: "eu_devmock",
+      name: "Design Preview",
+      email: MOCK_EMAIL,
+      provider: "google",
+      isAdmin: false,
+    });
+  }
   // Auth0's client `useUser()` reads this; a body here makes the app "signed in".
   if (pathname === "/auth/profile") {
     return json({

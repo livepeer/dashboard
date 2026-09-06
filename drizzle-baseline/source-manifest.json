@@ -1,0 +1,67 @@
+{
+  "status": "active_baseline",
+  "sourceCommit": "247275e4341befc6b731163e5e2a90e67a6a400f",
+  "preservedThrough": -1,
+  "sourceMigrations": [
+    {
+      "tag": "0000_dusty_krista_starr",
+      "when": 1784914333945,
+      "sha256": "0d3e54b85e40d3a9e8555eee6bf27c4b36cb3a288dcc61b09a8be9bd123a8b2c"
+    },
+    {
+      "tag": "0001_massive_vanisher",
+      "when": 1785179463784,
+      "sha256": "7ab9cf301a4423fc8e1ab5fdb6ef4387a4c8eeea85a46bdd46d681c9627b7e40"
+    },
+    {
+      "tag": "0002_empty_mach_iv",
+      "when": 1785179472117,
+      "sha256": "6ca812fb52fb21a547f15236ed642cf361bac2358b8285216dba2abba3cf4434"
+    },
+    {
+      "tag": "0003_consent_hardening",
+      "when": 1785179829233,
+      "sha256": "cb4c0cd2bf267fe8f576221be0ffd26ea8b2bf41e9eb2dfbc26c0111dbd25420"
+    },
+    {
+      "tag": "0004_curious_hellfire_club",
+      "when": 1785186227466,
+      "sha256": "c8455e2f49069ed3fad0c096332eee78c8e42c7881f683b974ee6bbe6dcd5c7d"
+    },
+    {
+      "tag": "0005_canonical_user_foundation",
+      "when": 1788556660490,
+      "sha256": "65746682eb0b20a61bf779d79e1dec691acb9c69074d7e52bc329a6e894fb102"
+    },
+    {
+      "tag": "0006_auth_identity_provider_metadata",
+      "when": 1788559405884,
+      "sha256": "862ed9d686d89c80ae01bd5db06cdaffd2263279dad222caf5c142e22974db7e"
+    },
+    {
+      "tag": "0007_early_access_domains",
+      "when": 1788564017686,
+      "sha256": "714ff9d4b6555334d15f9fe3389b4f12f463f5522ab757995a5b48d2fd4398cd"
+    },
+    {
+      "tag": "0008_oauth_code_redemptions",
+      "when": 1788565051000,
+      "sha256": "69c041cc405053d1125fec06785d33b7f805df8f09b80247187571c775d10058"
+    },
+    {
+      "tag": "0009_mcp_assets",
+      "when": 1788589131742,
+      "sha256": "079c9957dfeb480dfb0b8deb3e4378f876d866868c87911360af0ea391a0dfa1"
+    },
+    {
+      "tag": "0010_run_records",
+      "when": 1788702943721,
+      "sha256": "50eb75d516ff72d0c090851d26063ff61f99d0f207fc7b8ed38a4c0ea4177fd0"
+    }
+  ],
+  "candidateMigration": {
+    "tag": "0000_console_baseline",
+    "when": 1788710498159,
+    "sha256": "1f7878a90e86b254458b56fa52ed37b5e7274386c510e545f8db89fcaa4d0af7"
+  }
+}
