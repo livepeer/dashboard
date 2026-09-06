@@ -87,12 +87,19 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
           await tx.execute(
             sql.raw(`SET LOCAL search_path TO "${namespace}", public`)
           );
-          for (const statement of readFileSync(
-            "drizzle/0009_mcp_assets.sql",
-            "utf8"
-          ).split("--> statement-breakpoint")) {
-            if (statement.trim()) await tx.execute(sql.raw(statement));
-          }
+          const journal = JSON.parse(
+            readFileSync("drizzle/meta/_journal.json", "utf8")
+          );
+          for (const { tag: file } of journal.entries)
+            for (const statement of readFileSync(
+              `drizzle/${file}.sql`,
+              "utf8"
+            ).split("--> statement-breakpoint")) {
+              if (statement.trim())
+                await tx.execute(
+                  sql.raw(statement.replaceAll('"public".', `"${namespace}".`))
+                );
+            }
           vi.mocked(getDb).mockReturnValue(
             tx as unknown as ReturnType<typeof getDb>
           );
@@ -177,6 +184,6 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
           throw rollback;
         })
       ).rejects.toBe(rollback);
-    });
+    }, 60000);
   }
 );

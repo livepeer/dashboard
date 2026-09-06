@@ -11,6 +11,7 @@ import {
   verificationTokens,
   waitlistSignups,
   mcpAssets,
+  runs,
 } from "@/lib/db/schema";
 
 function uniqueIndexColumns(table: Parameters<typeof getTableConfig>[0]) {
@@ -24,6 +25,33 @@ function uniqueIndexColumns(table: Parameters<typeof getTableConfig>[0]) {
 }
 
 describe("database-enforced adversarial invariants", () => {
+  it("models durable run arguments and independently-lived media references", () => {
+    expect(runs.submittedArguments.dataType).toBe("json");
+    expect(runs.submittedArguments.hasDefault).toBe(false);
+    expect(runs.status.default).toBe("queued");
+    expect(uniqueIndexColumns(runs)).toContainEqual([
+      "principal_id",
+      "gateway_request_id",
+    ]);
+    expect(mcpAssets.runId.notNull).toBe(false);
+    for (const column of [
+      mcpAssets.availableUntil,
+      mcpAssets.expiresAt,
+      mcpAssets.unavailableAt,
+    ]) {
+      expect(column.hasDefault).toBe(false);
+      expect(column.notNull).toBe(false);
+    }
+    const fk = getTableConfig(mcpAssets).foreignKeys.find(
+      (key) => key.getName() === "mcp_assets_run_owner_fk"
+    )!;
+    expect(fk.reference().columns.map((column) => column.name)).toEqual([
+      "run_id",
+      "principal_id",
+      "gateway_request_id",
+    ]);
+    expect(fk.onDelete).toBe("restrict");
+  });
   it("prevents duplicate referral awards for the same reason and signup", () => {
     expect(uniqueIndexColumns(pointEvents)).toContainEqual([
       "reason",

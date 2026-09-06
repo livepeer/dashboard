@@ -71,6 +71,13 @@
       "when": 1788589131742,
       "tag": "0009_mcp_assets",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1788702943721,
+      "tag": "0010_run_records",
+      "breakpoints": true
     }
   ]
 }

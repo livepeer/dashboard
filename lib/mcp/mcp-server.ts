@@ -1,4 +1,3 @@
-import { isQueueControlUrl } from "@pymthouse/gateway-web";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import {
@@ -7,19 +6,15 @@ import {
 } from "./discovery";
 import { runInference } from "./gateway";
 import type { McpPrincipal } from "./jwt";
-import {
-  runCapabilityFailurePayload,
-  validateRunCapabilityEndpoint,
-} from "./run-capability";
+import { executeDurableRun } from "@/lib/runs/execute";
+import * as runStore from "@/lib/runs/store";
 import { fetchMcpUsage } from "./pymthouse-spend";
 import { assertSpendable } from "./pymthouse-usage";
 import {
-  ASSET_STORE_UNAVAILABLE,
   forgetAssets,
   listAssets,
   logAssetStoreError,
   publicAssetStoreError,
-  rememberAsset,
   serializeAsset,
 } from "./store";
 import { principalId } from "./log";
@@ -34,10 +29,6 @@ function text(data: unknown, isError = false) {
       },
     ],
   };
-}
-
-function newId(prefix: string): string {
-  return `${prefix}_${crypto.randomUUID().replaceAll("-", "").slice(0, 16)}`;
 }
 
 const RUN_CAPABILITY_TIMEOUT_MS = 780_000;
@@ -177,7 +168,10 @@ export function buildRawMcpServer(principal: McpPrincipal): McpServer {
     async () => {
       try {
         const assets = await listAssets(pid);
-        return text({ assets: assets.map(serializeAsset), count: assets.length });
+        return text({
+          assets: assets.map(serializeAsset),
+          count: assets.length,
+        });
       } catch (err) {
         logAssetStoreError(err);
         return text(publicAssetStoreError(), true);
@@ -195,7 +189,10 @@ export function buildRawMcpServer(principal: McpPrincipal): McpServer {
     async ({ query }) => {
       try {
         const assets = await listAssets(pid, query);
-        return text({ assets: assets.map(serializeAsset), count: assets.length });
+        return text({
+          assets: assets.map(serializeAsset),
+          count: assets.length,
+        });
       } catch (err) {
         logAssetStoreError(err);
         return text(publicAssetStoreError(), true);
@@ -207,7 +204,7 @@ export function buildRawMcpServer(principal: McpPrincipal): McpServer {
     "forget_assets",
     {
       description:
-        "Delete persisted assets for this principal. Omit ids to drop every asset they own.",
+        "Hide assets from this principal's asset library. Run history and references are retained. Omit ids to hide every library asset they own.",
       inputSchema: { ids: z.array(z.string()).optional() },
     },
     async ({ ids }) => {
@@ -282,73 +279,31 @@ export function buildRawMcpServer(principal: McpPrincipal): McpServer {
       },
     },
     async ({ capability, inputs, prompt, endpoint }, extra) => {
-      try {
-        assertSpendable(await fetchMcpUsage(principal));
-      } catch (err) {
-        return text(err instanceof Error ? err.message : String(err), true);
-      }
-
-      const row = await describeNetworkCapability(principal, capability);
-      const endpointError = validateRunCapabilityEndpoint(
-        capability,
-        row,
-        endpoint
-      );
-      if (endpointError) return text(endpointError, true);
-
-      const gatewayRequestId = newId("job");
       const started = Date.now();
       const heartbeat = setInterval(() => {
         void sendRunProgress(extra, Date.now() - started, "waiting on runner");
       }, 5_000);
       void sendRunProgress(extra, 0, "waiting on runner");
       try {
-        const result = await runInference(principal, {
-          capability,
-          params: (inputs as Record<string, unknown> | undefined) ?? {},
-          prompt,
-          endpoint: row?.mode === "persistent" ? endpoint : undefined,
-          timeoutMs: RUN_CAPABILITY_TIMEOUT_MS,
-          gatewayRequestId,
-          onProgress: (info) =>
-            sendRunProgress(extra, info.elapsedMs, `queue ${info.status}`),
-        });
-        const urlRaw =
-          result.url ?? result.imageUrl ?? result.videoUrl ?? result.audioUrl;
-        const url = urlRaw && !isQueueControlUrl(urlRaw) ? urlRaw : null;
-        let persistError: string | null = null;
-        if (url) {
-          try {
-            await rememberAsset(pid, {
-              id: newId("asset"),
-              url,
-              capability,
-              createdAt: new Date().toISOString(),
-              gatewayRequestId: result.gatewayRequestId,
-              providerRequestId: result.providerRequestId,
-            });
-          } catch (err) {
-            logAssetStoreError(err);
-            persistError = ASSET_STORE_UNAVAILABLE;
+        const result = await executeDurableRun(
+          principal,
+          {
+            capability,
+            ...(inputs === undefined ? {} : { inputs }),
+            ...(prompt === undefined ? {} : { prompt }),
+            ...(endpoint === undefined ? {} : { endpoint }),
+          },
+          {
+            store: runStore,
+            checkSpend: async () =>
+              assertSpendable(await fetchMcpUsage(principal)),
+            describe: () => describeNetworkCapability(principal, capability),
+            infer: (request) => runInference(principal, request),
+            onProgress: (info) =>
+              sendRunProgress(extra, info.elapsedMs, `queue ${info.status}`),
           }
-        }
-        return text({
-          capability,
-          url,
-          status: result.status,
-          request_id: result.providerRequestId,
-          status_url: result.statusUrl,
-          response_url: result.responseUrl,
-          orchestrator: result.orchestrator,
-          elapsed_ms: result.elapsedMs,
-          gateway_request_id: result.gatewayRequestId,
-          ...(persistError ? { persist_error: persistError } : {}),
-          ...(url ? {} : { data: result.data }),
-        });
-      } catch (err) {
-        // A call can fail after tickets were already paid, so the id must be
-        // reported here too or that spend is unattributable.
-        return text(runCapabilityFailurePayload(err, gatewayRequestId), true);
+        );
+        return text(result.payload, result.isError);
       } finally {
         clearInterval(heartbeat);
       }

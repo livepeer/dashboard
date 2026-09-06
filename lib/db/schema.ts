@@ -7,3 +7,4 @@ export * from "./schema/admin";
 export * from "./schema/authorization";
 export * from "./schema/subscriptions";
 export * from "./schema/mcp-assets";
+export * from "./schema/runs";

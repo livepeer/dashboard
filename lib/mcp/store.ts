@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, or, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 
 import { getDb } from "@/lib/db";
 import { mcpAssets } from "@/lib/db/schema";
@@ -148,7 +148,10 @@ export async function listAssets(
   query?: string,
   limit?: number
 ): Promise<Asset[]> {
-  const filters = [eq(mcpAssets.principalId, principalId)];
+  const filters = [
+    eq(mcpAssets.principalId, principalId),
+    isNull(mcpAssets.hiddenAt),
+  ];
   const trimmed = query?.trim();
   if (trimmed) {
     const pattern = `%${likeSubstring(trimmed)}%`;
@@ -200,17 +203,25 @@ export async function forgetAssets(
   const db = getDb();
   if (ids === undefined) {
     const rows = await db
-      .delete(mcpAssets)
-      .where(eq(mcpAssets.principalId, principalId))
+      .update(mcpAssets)
+      .set({ hiddenAt: new Date() })
+      .where(
+        and(eq(mcpAssets.principalId, principalId), isNull(mcpAssets.hiddenAt))
+      )
       .returning({ id: mcpAssets.id });
     return rows.length;
   }
   const keep = ids.filter((id) => id.trim());
   if (keep.length === 0) return 0;
   const rows = await db
-    .delete(mcpAssets)
+    .update(mcpAssets)
+    .set({ hiddenAt: new Date() })
     .where(
-      and(eq(mcpAssets.principalId, principalId), inArray(mcpAssets.id, keep))
+      and(
+        eq(mcpAssets.principalId, principalId),
+        isNull(mcpAssets.hiddenAt),
+        inArray(mcpAssets.id, keep)
+      )
     )
     .returning({ id: mcpAssets.id });
   return rows.length;
