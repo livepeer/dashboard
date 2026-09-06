@@ -185,20 +185,49 @@ scheduler. Gateway-wide ingestion needs coordination with John.
   creation or audit mutation. Actual runtime-role inserts/updates and denied
   audit/DDL probes passed in a rolled-back preview transaction. No production
   database was touched.
-- 382 unit/contract tests, 138 Console/MCP tests, 15 guarded database tests,
+- 382 unit/contract tests, 138 Console/MCP tests, 20 guarded database tests,
   lint, typecheck and production build passed.
   Build retains existing Auth0 configuration/dynamic-import and workspace-root
   warnings; a successful build is not proof of a configured login flow.
 - Disposable real-schema integration tests cover fresh and populated migration,
   preservation, no-op rerun, lifecycle, ownership, worker fencing and execution
-  fault injection. All fixtures are rolled back; no paid generation or emails.
+  fault injection. Those 15 tests roll back their fixtures; the five additional
+  concurrency tests use committed synthetic fixtures as described below.
+  No paid generation or emails.
 - Browser checks use the real components with fictional authentication/network
   responses: Admin search/status filters and shared drawer, Home recorded plus
   usage-only groups, old records, and mobile overflow. These are not a hosted,
   authenticated preview end-to-end test.
-- True cross-connection writer stress was not run: transaction-local rollback
-  fixtures are invisible to other connections. Row locking and CAS were reviewed,
-  with sequential database tests for duplicate/late completion and stale leases.
+- Real cross-connection concurrency testing now passes. Five deterministic cases
+  exercise duplicate completion, conflicting terminal outcomes, stale version
+  updates, competing worker claims, and replacement-receipt versus stale-worker
+  completion/release. Distinct backend PIDs and PostgreSQL's blocking-lock graph
+  prove genuine overlap; these are not concurrent calls on a single transaction.
+  This is targeted race coverage, not a production-scale load benchmark.
+
+### Repeating the concurrency rehearsal
+
+`tests/integration/run-concurrency.test.ts` requires the existing explicit test
+URL/host/branch variables plus
+`TEST_DATABASE_ALLOW_COMMITTED_FIXTURES=run-concurrency`. It accepts only the
+approved disposable branch `br-super-bird-auln2med`, checks its pre-provisioned
+database marker, and rejects URL options that could override the target.
+
+Run with the repository toolchain:
+
+```sh
+mise exec -- pnpm exec vitest run tests/integration/run-concurrency.test.ts
+```
+
+Unlike the rollback suites, this test commits a uniquely named `runrace_<uuid>`
+schema containing the real migration chain and synthetic identity/run fixtures,
+so separate connections can observe each other's transactions. Each worker uses
+its own transaction and transaction-local search path. Teardown verifies the
+schema's ownership marker, drops only that exact test schema, and asserts it is
+gone. Successful teardown was verified after testing. A hard process kill may
+prevent teardown; inspect and verify the unique schema marker before manually
+removing any leftover test schema. Never run this suite against runtime preview
+or production, or drop schemas by a wildcard.
 
 After separately authorizing the push/deployment:
 
@@ -220,5 +249,5 @@ After separately authorizing the push/deployment:
 7. Inspect administrative read audits. Run the guarded one-shot recovery worker
    only when desired; hosted recurring scheduling requires a separate rollout.
 
-Do not label the release fully accepted until the real signed-in preview checks
-and a separately isolated multi-connection concurrency rehearsal are complete.
+The concurrency gate is closed. Do not label the release fully accepted until
+the real signed-in preview checks are complete after authorized deployment.
