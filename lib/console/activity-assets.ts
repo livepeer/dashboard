@@ -1,15 +1,33 @@
 import "server-only";
 
 import type { SignedTicketRequestRow } from "@/lib/console/account-usage";
+import { listAssetsForGatewayRequestIds } from "@/lib/mcp/store";
 
 /**
- * Output joins need the early-access `mcp_assets` table. This PR keeps the
- * in-memory MCP store so it can land on main without a competing Drizzle
- * genesis. History still renders; previews stay empty until that chain merges.
+ * Exact owner + gateway correlation only. Never infer a run's output from
+ * nearby timestamps or a similarly named model. Hidden library assets remain
+ * part of history; unavailable media does not remove its reference.
  */
 export async function attachOutputsToTickets(
-  _principalId: string,
+  principalId: string,
   items: SignedTicketRequestRow[]
 ): Promise<SignedTicketRequestRow[]> {
-  return items;
+  const assets = await listAssetsForGatewayRequestIds(
+    principalId,
+    items.map((item) => item.gatewayRequestId).filter(Boolean)
+  );
+  const byGateway = new Map<string, (typeof assets)[number]>();
+  for (const asset of assets)
+    if (!byGateway.has(asset.gatewayRequestId))
+      byGateway.set(asset.gatewayRequestId, asset);
+  return items.map((item) => {
+    const asset = byGateway.get(item.gatewayRequestId);
+    return asset
+      ? {
+          ...item,
+          outputUrl: asset.url,
+          providerRequestId: asset.providerRequestId,
+        }
+      : item;
+  });
 }

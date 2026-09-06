@@ -20,10 +20,7 @@ import {
   dailyRequestSeriesForPipeline,
   utcDateKeysForPeriod,
 } from "@/lib/console/usage-capability-display";
-import {
-  clipHistoryPage,
-  historyWindow,
-} from "@/lib/console/history-window";
+import { historyRange } from "@/lib/console/history-range";
 import { isUserNotFoundError } from "@/lib/console/pymthouse-errors";
 
 export type {
@@ -266,9 +263,9 @@ export async function fetchAccountRequestsForExternalUser(input: {
   const accessToken = minted.access_token;
 
   const url = new URL(`${issuerOriginFromConfig()}/api/v1/user/usage/requests`);
-  const window = historyWindow();
-  url.searchParams.set("from", window.from);
-  url.searchParams.set("to", window.to);
+  const range = historyRange();
+  url.searchParams.set("from", range.from);
+  url.searchParams.set("to", range.to);
   if (input.cursor) url.searchParams.set("cursor", input.cursor);
   if (input.limit != null) url.searchParams.set("limit", String(input.limit));
 
@@ -306,13 +303,11 @@ export async function fetchAccountRequestsForExternalUser(input: {
     );
   }
 
-  const clipped = clipHistoryPage(
-    body?.items ?? [],
-    body?.nextCursor ?? null
-  );
   return {
-    items: clipped.items,
-    nextCursor: clipped.nextCursor,
+    // Request metadata outlives shared media URLs. Never age out rows or stop
+    // pagination because of their date or media availability.
+    items: body?.items ?? [],
+    nextCursor: body?.nextCursor ?? null,
     openMeterConfigured: body?.openMeterConfigured !== false,
     clientId: body?.clientId ?? publicClientId,
     externalUserId: body?.externalUserId ?? input.externalUserId,

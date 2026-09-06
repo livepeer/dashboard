@@ -29,13 +29,15 @@ export function mapSignedTicketToActivityRow(
   const { display, exact } = requestFeeDisplay(row);
 
   return {
-    id: row.gatewayRequestId || row.eventId,
+    id: `usage:${row.eventId}`,
+    gatewayRequestId: row.gatewayRequestId,
+    recordKind: "usage",
     environmentId: "env-production",
     timestamp: row.time,
     model,
     pipeline,
     modality,
-    status: "success",
+    status: "unknown",
     kind,
     latencyMs: null,
     durationMs: null,

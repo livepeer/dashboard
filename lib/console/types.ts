@@ -401,9 +401,19 @@ export interface AccountUsageDailyPoint {
 
 // "active" = a live session still in progress (streaming now). Batch calls are
 // sub-second, so they're only ever terminal.
-export type AccountActivityStatus = "active" | "success" | "failed" | "timeout";
+export type AccountActivityStatus =
+  | "active"
+  | "success"
+  | "failed"
+  | "timeout"
+  | "queued"
+  | "running"
+  | "cancelled"
+  | "unknown";
 
 export interface AccountActivityRow {
+  recordKind?: "run" | "usage";
+  gatewayRequestId?: string;
   id: string;
   /** Environment this request ran under. Scopes Jobs + Home runs by env. */
   environmentId: string;

@@ -8,6 +8,7 @@ import StatusDot from "@/components/console/StatusDot";
 import Tooltip from "@/components/design-system/Tooltip";
 import { useTickWhileActive } from "@/components/console/useTickWhileActive";
 import type { AccountActivityRow } from "@/lib/console/types";
+import { STATUS_LABEL } from "@/lib/console/activity-media";
 
 /**
  * CallsTable — the single Linear-style call list, used by:
@@ -173,7 +174,9 @@ export default function CallsTable({
             ? "bg-green-bright"
             : row.status === "timeout"
               ? "bg-warm"
-              : "bg-red-400";
+              : row.status === "failed"
+                ? "bg-red-400"
+                : "bg-fg-faint";
         const shadowRing =
           row.status === "success"
             ? "shadow-[0_0_0_2px_rgba(64,191,134,0.18)]"
@@ -222,6 +225,13 @@ export default function CallsTable({
                 {pipelineLabel}
               </span>
               {showEnvironment && <EnvTag environmentId={row.environmentId} />}
+              {row.recordKind && (
+                <span className="shrink-0 text-[11.5px] font-normal text-fg-faint">
+                  {row.recordKind === "usage"
+                    ? "Usage recorded"
+                    : STATUS_LABEL[row.status]}
+                </span>
+              )}
               {rowContext?.(row)}
             </div>
             {!compact && (
