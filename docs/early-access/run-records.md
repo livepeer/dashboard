@@ -1,7 +1,10 @@
 # Durable run records and temporary media
 
-Status: implemented locally; additive `0010_run_records` applied to isolated
-preview `br-holy-sound-auugm104` on 2026-09-06. Code has not been pushed or deployed.
+Status: additive `0010_run_records` applied to isolated preview
+`br-holy-sound-auugm104` on 2026-09-06; commit `16b39c5` deployed to the branch
+preview. This change removes the separate usage-only section; deployment of this
+cleanup must be verified separately from the previously verified `16b39c5` preview.
+Historical import was dropped because there is no real app history to preserve.
 John's migrations `0000`–`0009` remain unchanged. Other environments must apply
 the reviewed migration before deploying readers/writers of these columns.
 Production rollout and hosted recovery scheduling are not part of this change.
@@ -29,7 +32,7 @@ Submitted MCP JSON → runs → run_events
                                   ↓
                   Shared Home/Admin history and detail drawer
 
-PymtHouse billing → cost/legacy usage-only records, not proof of run success
+PymtHouse billing → correlated usage receipts, not a second History table
 ```
 
 ## Existing submission contract
@@ -86,8 +89,9 @@ search text.
 Successful text-only runs and failed runs do not need assets. Multiple output
 URLs may link to the same run. A retry is a new execution attempt with a new
 gateway ID; duplicate delivery of the same attempt must be idempotent. Status
-`unknown` means reconciliation is needed (for example, the local poller timed
-out but the provider might still complete). It is not proof of provider failure.
+`unknown` means the execution outcome is not established (for example, the local
+poller timed out without receiving a terminal outcome). It is not proof of provider
+failure. Only runs with recoverable handles get recovery jobs.
 Terminal statuses require completion time. Store transitions lock the run row,
 support expected-version checks, preserve terminal outcomes and deduplicate event
 keys. Terminal state, result, output links and event commit in one transaction.
@@ -126,17 +130,31 @@ explicit `RUN_RECONCILE_DATABASE_URL`, the approved preview branch in
 environment file, not command-line arguments. Use the repository toolchain and
 Node flags `--conditions=react-server --import tsx`. It does not schedule itself.
 
-Home reads saved runs with independent loading/error states and keyset pagination.
-The older PymtHouse feed remains a separately continued usage-only group,
-deduplicated against owned gateway IDs; billing events do not prove successful
-execution. Admin uses the same presentation/detail components, with user-email
-search and status filters.
+Home has one History table, backed by Postgres runs, with one loading/empty state
+and keyset pagination. It does not render the upstream billing feed as a second
+section. Admin uses the same presentation/detail components, with user-email
+search and status filters. Billing events do not prove successful execution.
 
 Owned billing receipts are appended idempotently to run events with numeric fee
 fields only. The detail drawer labels these **Observed usage**, not a guaranteed
-final bill. Correlation occurs as the personal upstream feed is read; it is not
-an automatic platform billing backfill. Saved runs remain readable when billing
-is unavailable. Client history state is scoped to the authenticated account.
+final bill. A background billing read correlates owned receipts without adding
+displayed rows. It is not a platform history backfill: history starts with newly
+captured Console MCP runs. Any old test-only upstream records remain untouched
+and are not shown as separate history. Saved runs remain readable when billing
+is unavailable.
+Client history state is scoped to the authenticated account.
+
+## Fresh-start history
+
+The owner confirmed there is no real app history to preserve. Historical import
+is intentionally out of scope: the unused importer and import-specific tests
+were removed before any real import ran. No upstream or preview data was deleted.
+
+New Console MCP runs are captured directly in Postgres and shown in one shared
+History table. Durable capture, lifecycle/recovery, asset references, access
+controls and the five general cross-connection concurrency tests remain intact.
+The source credential is not needed for a skipped historical import; existing
+PymtHouse integration features still require their normal configuration.
 
 ## Media presentation
 
@@ -243,9 +261,9 @@ After separately authorizing the push/deployment:
    a recoverable provider receipt must remain unknown with its reason.
 5. Hide an asset through `forget_assets`: agent discovery should omit it while run
    history retains the reference. A seven-day-old run must still be listed.
-6. Check usage-only continuation separately from recorded-run pagination; matched
-   gateway IDs must not appear as extra successful runs. Simulate a billing outage
-   and confirm saved history stays usable.
+6. Check the single History table and its Postgres pagination. Matched billing
+   gateway IDs must not appear as extra successful runs or a separate section.
+   Simulate a billing outage and confirm saved history stays usable.
 7. Inspect administrative read audits. Run the guarded one-shot recovery worker
    only when desired; hosted recurring scheduling requires a separate rollout.
 

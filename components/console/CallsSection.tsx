@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Search, X } from "lucide-react";
 import SectionHeader from "@/components/console/SectionHeader";
@@ -28,60 +28,30 @@ export default function CallsSection({
     },
     ownerKey
   );
-  const usage = useAccountRequests(isConnected, ownerKey);
+  // Correlate billing receipts with saved runs; billing is not a second history feed.
+  useAccountRequests(isConnected, ownerKey);
   const router = useRouter();
   const requestId = useSearchParams().get("request");
   const recorded = useMemo(
     () => history.page?.items.map(runToActivity) ?? [],
     [history.page]
   );
-  const legacy =
-    usage.status === "ready"
-      ? usage.rows.filter(
-          (row) =>
-            !query.trim() ||
-            [
-              row.id,
-              row.gatewayRequestId,
-              row.model,
-              row.pipeline,
-              row.modality,
-            ]
-              .join(" ")
-              .toLowerCase()
-              .includes(query.trim().toLowerCase())
-        )
-      : [];
-  const rows = [...recorded, ...legacy];
+  const rows = recorded;
   const found = rows.find(
     (row) => row.id === requestId || row.gatewayRequestId === requestId
   );
   const detail = useRunDetail(
     "/api/console/runs",
-    requestId &&
-      found?.recordKind !== "usage" &&
-      !requestId.startsWith("usage:")
-      ? requestId
-      : null,
+    requestId,
     ownerKey,
     isConnected
   );
   const openRow =
     found ?? (detail.detail ? runToActivity(detail.detail) : null);
-  const [loadingUsage, setLoadingUsage] = useState(false);
   const select = (row: AccountActivityRow) =>
     router.push("/home?request=" + encodeURIComponent(row.id), {
       scroll: false,
     });
-  const loadUsage = async () => {
-    if (loadingUsage) return;
-    setLoadingUsage(true);
-    try {
-      await usage.loadMore();
-    } finally {
-      setLoadingUsage(false);
-    }
-  };
   return (
     <>
       <SectionHeader
@@ -115,10 +85,10 @@ export default function CallsSection({
           </div>
         }
       />
-      <section aria-label="Recorded runs">
+      <section aria-label="History records">
         {history.loading && (
           <p role="status" className="px-7 py-8 text-sm text-fg-faint">
-            Loading runs…
+            Loading history…
           </p>
         )}
         {history.error && (
@@ -142,9 +112,7 @@ export default function CallsSection({
         />
         {!history.loading && !history.error && !recorded.length && (
           <p className="px-7 py-8 text-sm text-fg-faint">
-            {query
-              ? "No recorded runs match this search."
-              : "No recorded runs yet."}
+            {query ? "No history matches this search." : "No history yet."}
           </p>
         )}
         {history.page?.nextCursor && (
@@ -155,77 +123,9 @@ export default function CallsSection({
               disabled={history.loadingMore}
               className="text-xs text-fg-muted"
             >
-              {history.loadingMore ? "Loading…" : "Load older runs"}
+              {history.loadingMore ? "Loading…" : "Load older history"}
             </button>
           </div>
-        )}
-      </section>
-      <section aria-label="Usage-only history" className="mt-4">
-        <h3 className="px-3 py-3 text-xs font-medium text-fg-muted md:px-7">
-          Usage-only history
-        </h3>
-        {(usage.status === "loading" || usage.status === "idle") && (
-          <p role="status" className="px-7 py-5 text-sm text-fg-faint">
-            Loading usage…
-          </p>
-        )}
-        {usage.status === "error" && (
-          <p role="alert" className="px-7 py-4 text-sm text-fg-faint">
-            Could not load usage history.{" "}
-            <button
-              type="button"
-              className="underline"
-              onClick={() => void usage.reload()}
-            >
-              Retry
-            </button>
-          </p>
-        )}
-        {usage.status === "ready" && (
-          <>
-            <CallsTable
-              rows={legacy}
-              bordered={false}
-              density="cozy"
-              variant="requests"
-              onSelectRow={select}
-            />
-            {!legacy.length && (
-              <p className="px-7 py-5 text-sm text-fg-faint">
-                {query
-                  ? "No loaded usage matches this search."
-                  : "No additional usage records."}
-              </p>
-            )}
-            {usage.loadMoreError && (
-              <p role="alert" className="px-7 py-2 text-xs text-fg-muted">
-                Could not load more usage.{" "}
-                <button
-                  type="button"
-                  className="underline"
-                  onClick={() => void loadUsage()}
-                >
-                  Retry
-                </button>
-              </p>
-            )}
-            {usage.nextCursor && (
-              <div className="flex justify-center py-3">
-                <button
-                  type="button"
-                  disabled={loadingUsage}
-                  onClick={() => void loadUsage()}
-                  className="text-xs text-fg-muted"
-                >
-                  {loadingUsage
-                    ? "Loading…"
-                    : query
-                      ? "Search older history"
-                      : "Load older usage"}
-                </button>
-              </div>
-            )}
-          </>
         )}
       </section>
       {requestId && !openRow && detail.error && (
