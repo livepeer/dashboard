@@ -4,6 +4,7 @@ import {
   and,
   asc,
   count,
+  desc,
   eq,
   ilike,
   inArray,
@@ -478,7 +479,7 @@ export async function listAccessEntries(
       asc(
         sql`case when ${waitlistSignups.confirmedAt} is null then 1 else 0 end`
       ),
-      asc(waitlistSignups.firstSeenAt),
+      desc(waitlistSignups.firstSeenAt),
       asc(waitlistSignups.id)
     )
     .limit(filters.pageSize)
@@ -518,7 +519,7 @@ export async function freezeAccessSelection(
       asc(
         sql`case when ${waitlistSignups.confirmedAt} is null then 1 else 0 end`
       ),
-      asc(waitlistSignups.firstSeenAt),
+      desc(waitlistSignups.firstSeenAt),
       asc(waitlistSignups.id)
     );
   return { signupIds: rows.map((row) => row.id), total: rows.length };
