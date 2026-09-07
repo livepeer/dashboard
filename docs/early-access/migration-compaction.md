@@ -60,8 +60,8 @@ Runtime grant provisioning remains a separate rollout responsibility.
 - `pnpm db:migrate` commits the verified transition and pending migrations.
 - Never run raw `drizzle-kit migrate` against an original-chain database. It does
   not perform the transition and would try to recreate existing objects.
-- The older `scripts/runs/migrate-preview.ts` is a historical `0009 → 0010`
-  rollout tool; do not use it after baseline adoption.
+- The historical `0009 → 0010` preview rollout tool was removed after baseline
+  adoption. Use the baseline-aware migration runner above.
 
 Supply an owner connection through the process environment:
 `MIGRATION_DATABASE_URL` (or `DATABASE_URL`), plus
