@@ -18,8 +18,7 @@ describe("preview fixture safety", () => {
     ).toThrow();
     expect(() =>
       assertPreviewSeedTarget({
-        PREVIEW_SEED_DATABASE_URL:
-          "postgres://user:fake@ep-dry-smoke-au7l7dzw-pooler.c-10.us-east-1.aws.neon.tech/db",
+        PREVIEW_SEED_DATABASE_URL: "not-a-database-url",
         PREVIEW_SEED_BRANCH_ID: "production",
       })
     ).toThrow();
