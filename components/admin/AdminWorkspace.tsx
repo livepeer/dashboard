@@ -3,9 +3,15 @@
 import { useRef, useState, type ReactNode } from "react";
 import RunsPreview from "./RunsPreview";
 
-const sections = ["Waitlist", "History"] as const;
+const sections = ["Waitlist", "History", "Team"] as const;
 
-export default function AdminWorkspace({ children }: { children: ReactNode }) {
+export default function AdminWorkspace({
+  children,
+  team,
+}: {
+  children: ReactNode;
+  team?: ReactNode;
+}) {
   const [active, setActive] = useState<(typeof sections)[number]>("Waitlist");
   const tabs = useRef<(HTMLButtonElement | null)[]>([]);
   return (
@@ -42,8 +48,11 @@ export default function AdminWorkspace({ children }: { children: ReactNode }) {
                   event.key === "Home"
                     ? 0
                     : event.key === "End"
-                      ? 1
-                      : 1 - index;
+                      ? sections.length - 1
+                      : (index +
+                          (event.key === "ArrowRight" ? 1 : -1) +
+                          sections.length) %
+                        sections.length;
                 setActive(sections[next]);
                 tabs.current[next]?.focus();
               }}
@@ -53,6 +62,14 @@ export default function AdminWorkspace({ children }: { children: ReactNode }) {
             </button>
           ))}
         </div>
+      </div>
+      <div
+        role="tabpanel"
+        id="admin-panel-team"
+        aria-labelledby="admin-tab-team"
+        hidden={active !== "Team"}
+      >
+        {team}
       </div>
       <div
         role="tabpanel"

@@ -36,6 +36,7 @@ it("scopes actions and selections to the selected status section", async () => {
   );
   vi.stubGlobal("fetch", fetch);
   render(<AccessManager />);
+  fireEvent.click(screen.getByRole("button", { name: "Waitlist" }));
   const selected = await screen.findByRole("checkbox", {
     name: "Select alex@example.com",
   });
@@ -53,9 +54,7 @@ it("scopes actions and selections to the selected status section", async () => {
   expect(
     screen.getByRole("group", { name: "Selection actions" }).className
   ).toContain("h-12");
-  expect(
-    screen.queryByRole("button", { name: "Refresh list" })
-  ).toBeNull();
+  expect(screen.queryByRole("button", { name: "Refresh list" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Allow" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Clear selection" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Export CSV" })).toBeNull();
@@ -95,7 +94,10 @@ it("scopes actions and selections to the selected status section", async () => {
   expect(selected.className).toContain("checked:bg-black");
   const csvButton = screen.getByRole("button", { name: "Export CSV" });
   expect(csvButton.textContent).toBe(".csv");
-  expect(screen.getByRole("group", { name: "Selection actions" }).lastElementChild?.textContent).toBe("Allow");
+  expect(
+    screen.getByRole("group", { name: "Selection actions" }).lastElementChild
+      ?.textContent
+  ).toBe("Allow");
   expect(
     csvButton.querySelector("svg.lucide-arrow-down-to-line")
   ).not.toBeNull();
@@ -118,8 +120,13 @@ it("scopes actions and selections to the selected status section", async () => {
     await screen.findByRole("checkbox", { name: "Select alex@example.com" })
   );
   expect(screen.getByRole("button", { name: "Revoke selected" })).toBeTruthy();
-  expect(screen.getByRole("button", { name: "Revoke selected" }).className).toContain("border-border");
-  expect(screen.getByRole("group", { name: "Selection actions" }).lastElementChild?.textContent).toBe("Revoke selected");
+  expect(
+    screen.getByRole("button", { name: "Revoke selected" }).className
+  ).toContain("border-border");
+  expect(
+    screen.getByRole("group", { name: "Selection actions" }).lastElementChild
+      ?.textContent
+  ).toBe("Revoke selected");
   fireEvent.click(screen.getByRole("button", { name: "Waitlist" }));
   await waitFor(() =>
     expect(fetch).toHaveBeenLastCalledWith(
@@ -167,6 +174,7 @@ it("lets vertical scrolling pass through the horizontally scrollable table", asy
     )
   );
   render(<AccessManager />);
+  fireEvent.click(screen.getByRole("button", { name: "Waitlist" }));
   await screen.findByText("No matching entries.");
   const wrapper = screen.getByRole("table", {
     name: "Access entries",
@@ -226,6 +234,7 @@ it("selects across pages and exports only the frozen IDs in bounded chunks", asy
   vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
   vi.stubGlobal("fetch", fetch);
   render(<AccessManager />);
+  fireEvent.click(screen.getByRole("button", { name: "Waitlist" }));
   await screen.findByRole("checkbox", { name: "Select alex@example.com" });
   fireEvent.click(screen.getByRole("checkbox", { name: "Select all" }));
   await waitFor(() =>

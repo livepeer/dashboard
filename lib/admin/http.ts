@@ -6,7 +6,7 @@ export function requireSameOrigin(request: Request) {
 }
 export function apiError(error: unknown) {
   const typed = error as { status?: number; code?: string };
-  const status = [400, 401, 403, 409, 503].includes(typed?.status ?? 0)
+  const status = [400, 401, 403, 404, 409, 503].includes(typed?.status ?? 0)
     ? typed.status!
     : 503;
   return Response.json(

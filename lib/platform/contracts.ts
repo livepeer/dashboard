@@ -85,6 +85,18 @@ export type AdminAccessList = {
   pageSize: number;
 };
 
+export type AdminTeamMember = {
+  grantId: string;
+  signupId: string;
+  email: string;
+  grantedAt: string;
+  isCurrentUser: boolean;
+};
+
+export type AdminTeamList = {
+  members: AdminTeamMember[];
+};
+
 /** Backend-resolved profile; clients must never derive external account IDs. */
 export type ConsoleSessionProfile = {
   userId: string;

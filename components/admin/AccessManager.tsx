@@ -402,7 +402,10 @@ export default function AccessManager() {
       )}
       <div
         className="-mx-5 mt-4 overflow-x-auto sm:-mx-7"
-        style={{ overscrollBehaviorY: "auto", overscrollBehaviorX: "contain" }}
+        style={{
+          overscrollBehaviorY: "auto",
+          overscrollBehaviorX: "contain",
+        }}
         aria-busy={loading}
       >
         <table
