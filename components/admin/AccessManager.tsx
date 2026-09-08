@@ -242,6 +242,12 @@ export default function AccessManager() {
     selected.size > 0 && selectionScope === JSON.stringify([filter, query]);
   const failed = outcomes.filter((item) => item.outcome === "failed").length;
   const pages = Math.max(1, Math.ceil((list?.total ?? 0) / 50));
+  const confirmationCount =
+    confirmation?.reduce(
+      (total, request) => total + request.signupIds.length,
+      0
+    ) ?? 0;
+  const isApproving = confirmation?.[0]?.action === "approve";
 
   return (
     <section className="mt-10" aria-label="Console access">
@@ -402,7 +408,10 @@ export default function AccessManager() {
       )}
       <div
         className="-mx-5 mt-4 overflow-x-auto sm:-mx-7"
-        style={{ overscrollBehaviorY: "auto", overscrollBehaviorX: "contain" }}
+        style={{
+          overscrollBehaviorY: "auto",
+          overscrollBehaviorX: "contain",
+        }}
         aria-busy={loading}
       >
         <table
@@ -549,54 +558,54 @@ export default function AccessManager() {
           if (!open) setConfirmation(null);
         }}
       >
-        <DialogContent className="max-h-[85vh] overflow-auto">
-          <DialogTitle>
-            {confirmation?.[0]?.action === "approve" ? "Approve" : "Revoke"}{" "}
-            {confirmation?.reduce(
-              (total, request) => total + request.signupIds.length,
-              0
-            )}{" "}
-            selected entries?
-          </DialogTitle>
-          <DialogDescription>
-            This is a frozen selection of record IDs, not a live filter.
-            Approval invitations are transactional. Revocation blocks subsequent
-            protected requests; it does not cancel running external jobs.
-          </DialogDescription>
-          <details>
-            <summary className="cursor-pointer">
-              Review exact selected records
-            </summary>
-            <ul className="mt-3 max-h-52 overflow-auto text-xs">
-              {confirmation
-                ?.flatMap((request) => request.signupIds)
-                .map((id) => (
-                  <li key={id} className="py-1 break-all">
-                    {labels.current.get(id)
-                      ? `${labels.current.get(id)} · `
-                      : ""}
-                    {id}
-                  </li>
-                ))}
-            </ul>
-          </details>
-          <div className="flex gap-3">
-            <button
-              type="button"
-              className={control}
-              onClick={() => setConfirmation(null)}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              className={control}
-              onClick={() => {
-                if (confirmation) void execute(confirmation);
-              }}
-            >
-              Confirm {confirmation?.[0]?.action}
-            </button>
+        <DialogContent
+          className="max-h-[90vh] gap-0 overflow-hidden p-0 sm:max-w-sm"
+          closeButtonClassName="bg-transparent text-white hover:bg-black/25 hover:text-white"
+        >
+          <div className="aspect-[4/3] w-full overflow-hidden bg-muted">
+            <img
+              src={
+                isApproving
+                  ? "/images/console/explore/flux-schnell.webp"
+                  : "/images/console/explore/stable-video-diffusion.webp"
+              }
+              alt=""
+              className="h-full w-full object-cover"
+            />
+          </div>
+          <div className="grid gap-5 p-6">
+            <div className="grid gap-2">
+              <DialogTitle>
+                {isApproving ? "Approve MCP access?" : "Revoke MCP access?"}
+              </DialogTitle>
+              <DialogDescription>
+                {isApproving
+                  ? `Give ${confirmationCount} selected ${confirmationCount === 1 ? "person" : "people"} access to Livepeer through MCP.`
+                  : `Remove MCP access for ${confirmationCount} selected ${confirmationCount === 1 ? "person" : "people"}. Running jobs won’t be stopped.`}
+              </DialogDescription>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="lg"
+                className="h-12 w-full rounded-sm"
+                onClick={() => setConfirmation(null)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant={isApproving ? "default" : "destructive"}
+                size="lg"
+                className="h-12 w-full rounded-sm"
+                onClick={() => {
+                  if (confirmation) void execute(confirmation);
+                }}
+              >
+                {isApproving ? "Approve MCP access" : "Revoke MCP access"}
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

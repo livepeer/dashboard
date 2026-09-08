@@ -491,7 +491,7 @@ export function devMockResponse(
       name: "Design Preview",
       email: MOCK_EMAIL,
       provider: "google",
-      isAdmin: false,
+      isAdmin: true,
     });
   }
   // Auth0's client `useUser()` reads this; a body here makes the app "signed in".
@@ -510,6 +510,82 @@ export function devMockResponse(
   // Logging out of a fake session would bounce to a real Auth0 tenant.
   if (pathname === "/auth/logout" || pathname === "/auth/login") {
     return devRedirect(search.get("returnTo"), requestUrl);
+  }
+
+  if (pathname === "/api/admin/access") {
+    const state = search.get("state") ?? "waiting";
+    const fixtures = {
+      approved: [
+        ["alex@livepeer.org", "2026-07-18T14:22:00.000Z"],
+        ["samira@daydream.live", "2026-08-02T09:14:00.000Z"],
+      ],
+      waiting: [
+        ["jordan@studio.example", "2026-09-08T13:41:00.000Z"],
+        ["maya@video.example", "2026-09-07T18:09:00.000Z"],
+        ["devon@creative.example", "2026-09-06T11:32:00.000Z"],
+      ],
+      subscribed: [["newsletter@stream.example", "2026-09-04T17:04:00.000Z"]],
+      unverified: [["pending@creator.example", "2026-09-08T15:18:00.000Z"]],
+    } as const;
+    const rows = fixtures[state as keyof typeof fixtures] ?? fixtures.waiting;
+    return json({
+      rows: rows.map(([email, joinedAt], index) => ({
+        id: `00000000-0000-4000-8000-${String(index + 100).padStart(12, "0")}`,
+        email,
+        waitlistStatus: state === "unverified" ? "pending" : "confirmed",
+        accessState: state === "approved" ? "approved" : "pending",
+        joinedAt,
+        userId: null,
+        newsletterSubscribed: state === "subscribed",
+      })),
+      total: rows.length,
+      page: 1,
+      pageSize: 50,
+    });
+  }
+
+  if (pathname === "/api/admin/team") {
+    return json({
+      members: [
+        {
+          grantId: "00000000-0000-4000-8000-000000000201",
+          signupId: "00000000-0000-4000-8000-000000000301",
+          email: MOCK_EMAIL,
+          grantedAt: "2026-06-12T12:00:00.000Z",
+          isCurrentUser: true,
+        },
+        {
+          grantId: "00000000-0000-4000-8000-000000000202",
+          signupId: "00000000-0000-4000-8000-000000000302",
+          email: "operations@livepeer.org",
+          grantedAt: "2026-07-03T15:30:00.000Z",
+          isCurrentUser: false,
+        },
+        {
+          grantId: "00000000-0000-4000-8000-000000000203",
+          signupId: "00000000-0000-4000-8000-000000000303",
+          email: "studio@livepeer.org",
+          grantedAt: "2026-08-21T09:10:00.000Z",
+          isCurrentUser: false,
+        },
+      ],
+    });
+  }
+
+  if (pathname === "/api/admin/runs") {
+    return json({
+      items: [],
+      nextCursor: null,
+      counts: {
+        total: 0,
+        succeeded: 0,
+        failed: 0,
+        queued: 0,
+        running: 0,
+        unknown: 0,
+        cancelled: 0,
+      },
+    });
   }
 
   if (pathname === "/api/pymthouse/account-usage") {

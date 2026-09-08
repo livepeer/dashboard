@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import AccessManager from "@/components/admin/AccessManager";
 import AdminWorkspace from "@/components/admin/AdminWorkspace";
+import TeamManager from "@/components/admin/TeamManager";
 import { getAdminWaitlistSummary } from "@/lib/waitlist/admin";
 import { getAdminPrincipal } from "@/lib/admin/auth";
 import { getAuthenticatedIdentity } from "@/lib/authentication/session";
@@ -22,7 +23,7 @@ export default async function AdminPage() {
       className="flex min-h-full flex-1 flex-col bg-dark text-fg"
     >
       <section className="w-full px-5 py-8 sm:px-7">
-        <AdminWorkspace>
+        <AdminWorkspace team={<TeamManager />}>
           <dl className="mt-8 grid grid-cols-1 gap-x-6 gap-y-8 min-[480px]:grid-cols-2 xl:grid-cols-4">
             {[
               ["Total signups", summary.totalSignups],
