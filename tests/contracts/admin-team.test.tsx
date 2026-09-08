@@ -65,6 +65,20 @@ it("adds and revokes administrators from the team section", async () => {
 
   await screen.findByRole("table", { name: "Admin team members" });
   expect(await screen.findByText("teammate@example.com")).toBeTruthy();
+  const description = screen.getByText(
+    "Admins can grant or revoke platform access, as well as add or remove other admins."
+  );
+  expect(description.className).toContain("max-w-md");
+  expect(description.parentElement?.className).toContain("min-w-0");
+  const header = description.parentElement?.parentElement;
+  expect(header?.className).toContain("items-start");
+  expect(header?.className).toContain("border-b");
+  expect(header?.className).toContain("border-hairline");
+  expect(header?.className).not.toContain("flex-wrap");
+  const selectionToolbar = screen.getByTestId("team-selection-toolbar");
+  expect(selectionToolbar.className).toContain("h-12");
+  expect(selectionToolbar.className).toContain("mt-3");
+  expect(selectionToolbar.className).not.toContain("border-b");
 
   fireEvent.click(
     screen.getByRole("checkbox", { name: "Select me@example.com" })

@@ -200,8 +200,9 @@ export default function TeamManager({
       <SectionHeader
         variant="default"
         title={embedded ? "Administrators" : "Team"}
-        description="People with administrator access to Console."
-        className="mb-4 flex flex-wrap items-end justify-between gap-3"
+        description="Admins can grant or revoke platform access, as well as add or remove other admins."
+        descriptionClassName="max-w-md"
+        className="flex items-start justify-between gap-3 border-b border-hairline pb-4"
         action={
           <Button
             type="button"
@@ -218,7 +219,10 @@ export default function TeamManager({
           </Button>
         }
       />
-      <div className="flex min-h-12 items-center justify-end gap-2 border-b border-hairline">
+      <div
+        className="mt-3 flex h-12 items-center justify-end gap-2"
+        data-testid="team-selection-toolbar"
+      >
         {selectedMember && (
           <button
             type="button"
