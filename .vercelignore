@@ -1,1 +1,7 @@
 tmp/
+.next/
+.next-cutover/
+node_modules/
+output/
+.agent-worktrees/
+.pnpm-store/
