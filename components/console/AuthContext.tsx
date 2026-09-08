@@ -86,6 +86,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [profile]
   );
   const disconnect = useCallback(() => {
+    // Full-page navigation on purpose: /auth/logout is an Auth0 route handled
+    // in proxy.ts, not a Next.js page, so the client router cannot reach it.
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
     window.location.assign("/auth/logout");
   }, []);
   return (

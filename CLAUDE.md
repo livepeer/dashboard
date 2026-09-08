@@ -16,7 +16,7 @@
 
 ## Environment
 
-Local dev needs `.env.local` (see `.env.example`). Auth0 vars are required — without them `middleware.ts` throws `DomainResolutionError` on every request and the whole app 404s. Preview values can be pulled with `vercel env pull --environment=preview` against `livepeer-foundation/console`, except values Vercel marks **Sensitive** (`AUTH0_SECRET`, `AUTH0_CLIENT_SECRET`, `LP_DASHBOARD_SESSION_SECRET`, `PYMTHOUSE_M2M_CLIENT_SECRET`) which the API will not return to anyone.
+Local dev needs `.env.local` (see `.env.example`). Auth0 vars are required — without them `proxy.ts` throws `DomainResolutionError` on every request and the whole app 404s. Preview values can be pulled with `vercel env pull --environment=preview` against `livepeer-foundation/console`, except values Vercel marks **Sensitive** (`AUTH0_SECRET`, `AUTH0_CLIENT_SECRET`, `LP_DASHBOARD_SESSION_SECRET`, `PYMTHOUSE_M2M_CLIENT_SECRET`) which the API will not return to anyone.
 
 `CONSOLE_DEV_MOCK=1` serves auth + PymtHouse endpoints from `lib/console/dev-mock.ts` so auth-gated surfaces can be worked on without credentials. Hard-disabled when `NODE_ENV === "production"`.
 

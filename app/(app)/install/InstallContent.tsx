@@ -546,7 +546,7 @@ export default function InstallPage() {
   const { isConnected, isLoading } = useAuth();
 
   // Middleware already sends signed-out requests to /login before this page
-  // is served (see middleware.ts). This client-side fallback only fires if
+  // is served (see proxy.ts). This client-side fallback only fires if
   // the session lapses while the console is open.
   useEffect(() => {
     if (!isLoading && !isConnected) {
