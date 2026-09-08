@@ -6,6 +6,7 @@ import { mcpPublicOrigin } from "./env";
 import { clientClassFromHeaders, hashPrincipal, logToolCall } from "./log";
 import { AccessError } from "@/lib/access/service";
 import { requireApprovedMcpAccount } from "./access";
+import { defaultOmittedToolArguments } from "./tool-arguments";
 
 function accessFailure(req: Request, error: AccessError): Response {
   return Response.json(
@@ -31,6 +32,22 @@ export function optionsResponse(req: Request): Response {
 
 export function identityResponse(req: Request): Response {
   return Response.json(mcpIdentityBody(req), { headers: corsHeaders(req) });
+}
+
+async function requestWithDefaultToolArguments(req: Request): Promise<Request> {
+  if (req.method !== "POST") return req;
+  const contentType = req.headers.get("content-type") ?? "";
+  if (!contentType.includes("application/json")) return req;
+  try {
+    const body = defaultOmittedToolArguments(await req.clone().json());
+    return new Request(req.url, {
+      method: req.method,
+      headers: req.headers,
+      body: JSON.stringify(body),
+    });
+  } catch {
+    return req;
+  }
 }
 
 function unauthorized(req: Request, rpcId: unknown): Response {
@@ -98,7 +115,9 @@ export async function handleMcpRequest(req: Request): Promise<Response> {
   });
   await server.connect(transport);
   try {
-    const response = await transport.handleRequest(req);
+    const response = await transport.handleRequest(
+      await requestWithDefaultToolArguments(req)
+    );
     const contentType = response.headers.get("content-type") ?? "";
     logToolCall({
       tool: "mcp_http",

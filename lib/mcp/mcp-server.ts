@@ -80,7 +80,6 @@ export function buildRawMcpServer(principal: McpPrincipal): McpServer {
     {
       description:
         "List live-runner apps currently advertised in discovery. Use exact `name` (app id) with run_capability. `mode` is single-shot or persistent. Use describe_capability for fal route input hints when the app is listed.",
-      inputSchema: {},
     },
     async () => text({ capabilities: await listNetworkCapabilities(principal) })
   );
@@ -148,7 +147,6 @@ export function buildRawMcpServer(principal: McpPrincipal): McpServer {
     "create_upload_url",
     {
       description: "Not available on this host. Use a public https URL.",
-      inputSchema: {},
     },
     async () =>
       text({
@@ -163,7 +161,6 @@ export function buildRawMcpServer(principal: McpPrincipal): McpServer {
     {
       description:
         "Recent media URLs for this principal, persisted in Postgres. Newest first, default 20, max 50.",
-      inputSchema: {},
     },
     async () => {
       try {
@@ -174,7 +171,7 @@ export function buildRawMcpServer(principal: McpPrincipal): McpServer {
         });
       } catch (err) {
         logAssetStoreError(err);
-        return text(publicAssetStoreError(), true);
+        return text(publicAssetStoreError(err), true);
       }
     }
   );
@@ -195,7 +192,7 @@ export function buildRawMcpServer(principal: McpPrincipal): McpServer {
         });
       } catch (err) {
         logAssetStoreError(err);
-        return text(publicAssetStoreError(), true);
+        return text(publicAssetStoreError(err), true);
       }
     }
   );
@@ -212,7 +209,7 @@ export function buildRawMcpServer(principal: McpPrincipal): McpServer {
         return text({ forgotten: await forgetAssets(pid, ids) });
       } catch (err) {
         logAssetStoreError(err);
-        return text(publicAssetStoreError(), true);
+        return text(publicAssetStoreError(err), true);
       }
     }
   );
@@ -222,7 +219,6 @@ export function buildRawMcpServer(principal: McpPrincipal): McpServer {
     {
       description:
         "Current UTC calendar day OpenMeter network-fee spend (00:00–23:59 UTC). hasAccess is the PymtHouse spendable hard limit.",
-      inputSchema: {},
     },
     async () => {
       try {
@@ -238,7 +234,6 @@ export function buildRawMcpServer(principal: McpPrincipal): McpServer {
     {
       description:
         "Who this token is keyed as. console_access is unknown on this host (check Console).",
-      inputSchema: {},
     },
     async () =>
       text({
@@ -255,7 +250,6 @@ export function buildRawMcpServer(principal: McpPrincipal): McpServer {
     {
       description:
         "Current UTC calendar day OpenMeter network-fee spend (00:00–23:59 UTC).",
-      inputSchema: {},
     },
     async () => {
       try {

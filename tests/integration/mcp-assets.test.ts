@@ -8,10 +8,12 @@ import { openIntegrationDatabase } from "@/tests/support/isolated-db";
 import * as schema from "@/lib/db/schema";
 vi.mock("@/lib/db", () => ({ getDb: vi.fn() }));
 import { getDb } from "@/lib/db";
+import { mcpAssets } from "@/lib/db/schema";
 
 import {
   chunkIds,
   forgetAssets,
+  ilikeLiteral,
   likeSubstring,
   listAssets,
   listAssetsForGatewayRequestIds,
@@ -46,6 +48,29 @@ describe("mcp asset store helpers", () => {
     expect(likeSubstring("50%_off\\x")).toBe("50\\%\\_off\\\\x");
   });
 
+  it("ilikeLiteral parameterizes ESCAPE instead of embedding ESCAPE '\\'", () => {
+    const chunks = ilikeLiteral(mcpAssets.capability, "50%").queryChunks;
+    const staticSql = chunks
+      .filter(
+        (chunk): chunk is { value: string[] } =>
+          !!chunk &&
+          typeof chunk === "object" &&
+          "value" in chunk &&
+          Array.isArray(chunk.value)
+      )
+      .map((chunk) => chunk.value.join(""))
+      .join("");
+    const params = chunks.flatMap((chunk) => {
+      if (typeof chunk === "string") return [chunk];
+      if (chunk && typeof chunk === "object" && "value" in chunk)
+        return typeof chunk.value === "string" ? [chunk.value] : [];
+      return [];
+    });
+    expect(staticSql).toContain("ESCAPE ");
+    expect(staticSql).not.toContain("ESCAPE '\\'");
+    expect(params).toContain("\\");
+  });
+
   it("chunkIds keeps leftovers instead of truncating", () => {
     const ids = Array.from({ length: 130 }, (_, i) => `job_${i}`);
     const chunks = chunkIds(ids, 100);
@@ -62,7 +87,11 @@ describe("mcp asset store helpers", () => {
   );
 
   it("publicAssetStoreError does not include connection details", () => {
-    const payload = publicAssetStoreError();
+    const payload = publicAssetStoreError({
+      code: "42601",
+      message: "postgresql://user:password@db/waitlist",
+    });
+    expect(payload.code).toBe("42601");
     expect(JSON.stringify(payload)).not.toContain("postgresql://");
     expect(JSON.stringify(payload)).not.toContain("password");
   });

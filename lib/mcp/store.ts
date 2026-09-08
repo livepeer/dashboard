@@ -57,13 +57,29 @@ export function likeSubstring(query: string): string {
   return query.replace(/[\\%_]/g, (ch) => `\\${ch}`);
 }
 
-export function publicAssetStoreError(): {
+/** Bind ESCAPE so the backslash is one character even if standard_conforming_strings is off. */
+export function ilikeLiteral(
+  column:
+    | typeof mcpAssets.capability
+    | typeof mcpAssets.url
+    | typeof mcpAssets.gatewayRequestId,
+  query: string
+) {
+  return sql`${column} ILIKE ${`%${likeSubstring(query)}%`} ESCAPE ${"\\"}`;
+}
+
+export function publicAssetStoreError(err?: unknown): {
   error: string;
   message: string;
+  code?: string;
 } {
+  const rec =
+    err && typeof err === "object" ? (err as { code?: unknown }) : null;
+  const code = rec && typeof rec.code === "string" ? rec.code : undefined;
   return {
     error: ASSET_STORE_UNAVAILABLE,
     message: "Could not access persisted assets.",
+    ...(code ? { code } : {}),
   };
 }
 
@@ -154,12 +170,11 @@ export async function listAssets(
   ];
   const trimmed = query?.trim();
   if (trimmed) {
-    const pattern = `%${likeSubstring(trimmed)}%`;
     filters.push(
       or(
-        sql`${mcpAssets.capability} ILIKE ${pattern} ESCAPE '\\'`,
-        sql`${mcpAssets.url} ILIKE ${pattern} ESCAPE '\\'`,
-        sql`${mcpAssets.gatewayRequestId} ILIKE ${pattern} ESCAPE '\\'`
+        ilikeLiteral(mcpAssets.capability, trimmed),
+        ilikeLiteral(mcpAssets.url, trimmed),
+        ilikeLiteral(mcpAssets.gatewayRequestId, trimmed)
       )!
     );
   }
