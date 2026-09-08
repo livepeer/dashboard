@@ -41,8 +41,8 @@ type WheelImage = {
 };
 
 const CLAUDE_CODE_COMMAND = `claude mcp add --transport http livepeer ${MCP_SERVER_URL}`;
-const CHATGPT_CODEX_PROMPT = `Codex, add the Livepeer MCP connector to ChatGPT desktop. Name it Livepeer and use this server URL: ${MCP_SERVER_URL}`;
-const HERMES_CODEX_PROMPT = `Codex, add the Livepeer MCP connector to Hermes. Name it Livepeer and use this server URL: ${MCP_SERVER_URL}`;
+const CODEX_CLI_COMMAND = `codex mcp add livepeer --url ${MCP_SERVER_URL}\ncodex mcp login livepeer`;
+const HERMES_CLI_COMMAND = `hermes mcp add livepeer --url ${MCP_SERVER_URL} --auth oauth`;
 const WHEEL_IMAGE_REPEAT = 1;
 const WHEEL_CARD_WIDTH = 118;
 const WHEEL_CARD_HEIGHT = WHEEL_CARD_WIDTH * (4 / 3);
@@ -124,19 +124,19 @@ const TARGETS: InstallTarget[] = [
   },
   {
     key: "chatgpt",
-    label: "ChatGPT",
+    label: "Codex",
     steps: [
       {
-        title: "Copy and run the Codex prompt",
-        body: "ChatGPT MCP connector setup works in the desktop app only. Open ChatGPT desktop, start Codex, paste the prompt, and approve the connector changes.",
+        title: "Run the Codex CLI commands",
+        body: "Paste these into your terminal to add Livepeer as an MCP server, then sign in when the browser opens.",
         copy: {
-          value: CHATGPT_CODEX_PROMPT,
-          ariaLabel: "Copy ChatGPT Codex connector prompt",
+          value: CODEX_CLI_COMMAND,
+          ariaLabel: "Copy Codex CLI install commands",
         },
       },
       {
         title: "Connect and start",
-        body: "Sign in, then bring Livepeer production tools into your ChatGPT workflows.",
+        body: "Finish Console Auth0 in the browser, then ask Codex to list capabilities and run one.",
       },
     ],
   },
@@ -145,16 +145,16 @@ const TARGETS: InstallTarget[] = [
     label: "Hermes",
     steps: [
       {
-        title: "Copy and run the Codex prompt",
-        body: "This asks Codex to add the Livepeer MCP server for you. Open Hermes, start Codex, paste the prompt, and approve the connector changes.",
+        title: "Run the Hermes CLI command",
+        body: "Paste this into your terminal to add Livepeer as an MCP server, then sign in when the browser opens.",
         copy: {
-          value: HERMES_CODEX_PROMPT,
-          ariaLabel: "Copy Hermes Codex connector prompt",
+          value: HERMES_CLI_COMMAND,
+          ariaLabel: "Copy Hermes CLI install command",
         },
       },
       {
         title: "Connect and start",
-        body: "Sign in, then start generating production assets from Hermes.",
+        body: "Finish Console Auth0 in the browser, then ask Hermes to list capabilities and run one.",
       },
     ],
   },
@@ -445,10 +445,10 @@ function CopyValueBlock({ copy }: { copy: CopyValue }) {
           "color-mix(in oklch, var(--color-fg-muted) 45%, transparent)",
       }}
     >
-      <div className="flex min-w-0 items-center gap-4">
+      <div className="flex min-w-0 items-start gap-4">
         <code
           title={copy.value}
-          className="block min-w-0 flex-1 truncate font-sans text-sm leading-5 text-fg"
+          className="block min-w-0 flex-1 whitespace-pre-wrap break-all font-mono text-sm leading-5 text-fg"
         >
           {copy.value}
         </code>
