@@ -44,7 +44,7 @@
   },
   "widget": {
     "logo_position": "center",
-    "logo_url": "https://livepeer-console.vercel.app/icon.svg",
+    "logo_url": "https://earlyaccess.livepeer.org/icon.svg",
     "logo_height": 36,
     "header_text_alignment": "center",
     "social_buttons_layout": "bottom"
