@@ -10,8 +10,13 @@ import {
 import { afterEach, expect, it, vi } from "vitest";
 import AccessManager from "@/components/admin/AccessManager";
 
+const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
+vi.mock("sonner", () => ({ toast }));
+
 afterEach(() => {
   cleanup();
+  toast.success.mockReset();
+  toast.error.mockReset();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
@@ -85,6 +90,65 @@ it("uses distinct, simplified MCP approval and revocation dialogs", async () => 
   expect(dialog.querySelector("img")?.getAttribute("src")).toBe(
     "/images/console/explore/stable-video-diffusion.webp"
   );
+});
+
+it("settles a successful access change, refreshes the table, and shows a toast", async () => {
+  const id = "00000000-0000-4000-8000-000000000001";
+  let approved = false;
+  const fetch = vi.fn(async (input: string, options?: RequestInit) => {
+    if (input === "/api/admin/access" && options?.method === "POST") {
+      const request = JSON.parse(String(options.body));
+      approved = true;
+      return Response.json({
+        requestId: request.requestId,
+        outcomes: [{ signupId: id, outcome: "approved" }],
+      });
+    }
+    return Response.json({
+      rows: approved
+        ? []
+        : [
+            {
+              id,
+              email: "alex@example.com",
+              waitlistStatus: "confirmed",
+              accessState: "pending",
+              joinedAt: "2026-09-04T00:00:00Z",
+              userId: null,
+              newsletterSubscribed: false,
+            },
+          ],
+      total: approved ? 0 : 1,
+      page: 1,
+      pageSize: 50,
+    });
+  });
+  vi.stubGlobal("fetch", fetch);
+  render(<AccessManager />);
+
+  fireEvent.click(
+    await screen.findByRole("checkbox", { name: "Select alex@example.com" })
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Allow" }));
+  const dialog = await screen.findByRole("dialog");
+  fireEvent.click(
+    within(dialog).getByRole("button", { name: "Approve MCP access" })
+  );
+
+  await waitFor(() =>
+    expect(toast.success).toHaveBeenCalledWith(
+      "MCP access approved for 1 person."
+    )
+  );
+  await screen.findByText("No matching entries.");
+  expect(
+    screen.queryByRole("region", { name: "Bulk action results" })
+  ).toBeNull();
+  expect(screen.queryByRole("button", { name: "Allow" })).toBeNull();
+  expect(
+    (screen.getByRole("button", { name: "Approved" }) as HTMLButtonElement)
+      .disabled
+  ).toBe(false);
 });
 
 it("scopes actions and selections to the selected status section", async () => {

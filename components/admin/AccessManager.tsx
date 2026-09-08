@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Search, X, ArrowDownToLine } from "lucide-react";
+import { toast } from "sonner";
 import {
   selectionCsv,
   type SelectionExportRow,
@@ -65,7 +66,6 @@ export default function AccessManager() {
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true);
-    setList(null);
     setError("");
     const params = new URLSearchParams({
       search: query,
@@ -153,6 +153,9 @@ export default function AccessManager() {
     setConfirmation(null);
     setBatch(requests);
     setError("");
+    const previousById = new Map(
+      previous.map((item) => [item.signupId, item.outcome])
+    );
     const merged = new Map(previous.map((item) => [item.signupId, item]));
     try {
       for (const request of retryableRequests(requests, previous)) {
@@ -184,6 +187,58 @@ export default function AccessManager() {
             merged.set(item.signupId, item);
         }
         setOutcomes([...merged.values()]);
+      }
+
+      const completed = [...merged.values()];
+      const failedCount = completed.filter(
+        (item) => item.outcome === "failed"
+      ).length;
+      const ineligibleCount = completed.filter(
+        (item) => item.outcome === "ineligible"
+      ).length;
+      const action = requests[0]?.action;
+
+      if (failedCount) {
+        setOutcomes(completed);
+        toast.error(
+          `${failedCount} ${failedCount === 1 ? "change needs" : "changes need"} another try.`
+        );
+      } else {
+        const removableIds = new Set(
+          completed
+            .filter(
+              (item) =>
+                item.outcome !== "ineligible" &&
+                previousById.get(item.signupId) !== item.outcome
+            )
+            .map((item) => item.signupId)
+        );
+        setList((current) =>
+          current
+            ? {
+                ...current,
+                rows: current.rows.filter((row) => !removableIds.has(row.id)),
+                total: Math.max(0, current.total - removableIds.size),
+              }
+            : current
+        );
+        setBatch(null);
+        setOutcomes([]);
+        setSelected(new Set());
+        setSelectionScope(null);
+
+        if (ineligibleCount) {
+          toast.error(
+            `${ineligibleCount} selected ${ineligibleCount === 1 ? "person was" : "people were"} not eligible for this change.`
+          );
+        } else if (action) {
+          const count = completed.length;
+          toast.success(
+            action === "approve"
+              ? `MCP access approved for ${count} ${count === 1 ? "person" : "people"}.`
+              : `MCP access revoked for ${count} ${count === 1 ? "person" : "people"}.`
+          );
+        }
       }
     } finally {
       mutationLock.current = false;

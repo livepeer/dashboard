@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Plus, X } from "lucide-react";
+import { toast } from "sonner";
 import SectionHeader from "@/components/console/SectionHeader";
 import { Button } from "@/components/ui/button";
 import {
@@ -44,7 +45,6 @@ export default function TeamManager({
   const [list, setList] = useState<AdminTeamList | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
   const [reload, setReload] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
@@ -103,7 +103,6 @@ export default function TeamManager({
     if (working || !email.trim()) return;
     setWorking(true);
     setAddError("");
-    setNotice("");
     try {
       const response = await fetch("/api/admin/team", {
         method: "POST",
@@ -121,18 +120,31 @@ export default function TeamManager({
       setAddOpen(false);
       setEmail("");
       setAddError("");
-      setNotice(
+      setList((current) =>
+        current
+          ? {
+              members: [
+                result.member,
+                ...current.members.filter(
+                  (member) => member.grantId !== result.member.grantId
+                ),
+              ],
+            }
+          : current
+      );
+      toast.success(
         result.outcome === "unchanged"
           ? `${result.member.email} is already an admin.`
           : `${result.member.email} was added as an admin.`
       );
       setReload((value) => value + 1);
     } catch (cause) {
-      setAddError(
+      const message =
         cause instanceof Error
           ? cause.message
-          : "Could not add this administrator."
-      );
+          : "Could not add this administrator.";
+      setAddError(message);
+      toast.error(message);
     } finally {
       setWorking(false);
     }
@@ -142,7 +154,6 @@ export default function TeamManager({
     if (working || !revokeTarget) return;
     setWorking(true);
     setRevokeError("");
-    setNotice("");
     try {
       const response = await fetch("/api/admin/team", {
         method: "DELETE",
@@ -156,17 +167,29 @@ export default function TeamManager({
             "Could not revoke administrator access."
           )
         );
-      setNotice(`${revokeTarget.email} no longer has administrator access.`);
+      setList((current) =>
+        current
+          ? {
+              members: current.members.filter(
+                (member) => member.grantId !== revokeTarget.grantId
+              ),
+            }
+          : current
+      );
+      toast.success(
+        `${revokeTarget.email} no longer has administrator access.`
+      );
       setRevokeTarget(null);
       setRevokeError("");
       setSelected(null);
       setReload((value) => value + 1);
     } catch (cause) {
-      setRevokeError(
+      const message =
         cause instanceof Error
           ? cause.message
-          : "Could not revoke administrator access."
-      );
+          : "Could not revoke administrator access.";
+      setRevokeError(message);
+      toast.error(message);
     } finally {
       setWorking(false);
     }
@@ -186,7 +209,6 @@ export default function TeamManager({
             className="rounded-sm"
             onClick={() => {
               setError("");
-              setNotice("");
               setAddError("");
               setAddOpen(true);
             }}
@@ -224,12 +246,9 @@ export default function TeamManager({
           </Button>
         )}
       </div>
-      {(error || notice) && (
-        <p
-          className={`mt-4 text-sm ${error ? "text-red-500" : "text-fg-muted"}`}
-          role={error ? "alert" : "status"}
-        >
-          {error || notice}
+      {error && (
+        <p className="mt-4 text-sm text-red-500" role="alert">
+          {error}
         </p>
       )}
       <div
