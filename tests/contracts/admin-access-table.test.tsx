@@ -5,6 +5,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import AccessManager from "@/components/admin/AccessManager";
@@ -13,6 +14,67 @@ afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
+});
+
+it("uses distinct, simplified MCP approval and revocation dialogs", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () =>
+      Response.json({
+        rows: [
+          {
+            id: "00000000-0000-4000-8000-000000000001",
+            email: "alex@example.com",
+            waitlistStatus: "confirmed",
+            accessState: "pending",
+            joinedAt: "2026-09-04T00:00:00Z",
+            userId: null,
+            newsletterSubscribed: false,
+          },
+        ],
+        total: 1,
+        page: 1,
+        pageSize: 50,
+      })
+    )
+  );
+  render(<AccessManager />);
+  fireEvent.click(
+    await screen.findByRole("checkbox", { name: "Select alex@example.com" })
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Allow" }));
+
+  let dialog = await screen.findByRole("dialog");
+  expect(within(dialog).getByText("Approve MCP access?")).toBeTruthy();
+  expect(dialog.textContent).toContain(
+    "Give 1 selected person access to Livepeer through MCP."
+  );
+  expect(
+    within(dialog).getByRole("button", { name: "Approve MCP access" })
+  ).toBeTruthy();
+  expect(dialog.querySelector("img")?.getAttribute("src")).toBe(
+    "/images/console/explore/flux-schnell.webp"
+  );
+  expect(dialog.querySelector("details")).toBeNull();
+  fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+
+  fireEvent.click(screen.getByRole("button", { name: "Approved" }));
+  fireEvent.click(
+    await screen.findByRole("checkbox", { name: "Select alex@example.com" })
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Revoke selected" }));
+  dialog = await screen.findByRole("dialog");
+  expect(within(dialog).getByText("Revoke MCP access?")).toBeTruthy();
+  expect(dialog.textContent).toContain(
+    "Remove MCP access for 1 selected person. Running jobs won’t be stopped."
+  );
+  expect(
+    within(dialog).getByRole("button", { name: "Revoke MCP access" })
+  ).toBeTruthy();
+  expect(dialog.querySelector("img")?.getAttribute("src")).toBe(
+    "/images/console/explore/stable-video-diffusion.webp"
+  );
 });
 
 it("scopes actions and selections to the selected status section", async () => {
