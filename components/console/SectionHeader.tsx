@@ -5,6 +5,8 @@ interface SectionHeaderProps {
   title: string;
   /** Optional one-line description below the title. Only shown when `variant="default"`. */
   description?: string;
+  /** Optional width or typography treatment for the description. */
+  descriptionClassName?: string;
   /** Optional content rendered to the right of the title — typically a "View all →" link or a control. */
   action?: ReactNode;
   /** Optional count rendered as a mono pill next to the title (mono variant only). */
@@ -32,6 +34,7 @@ interface SectionHeaderProps {
 export default function SectionHeader({
   title,
   description,
+  descriptionClassName,
   action,
   count,
   variant = "mono",
@@ -74,10 +77,14 @@ export default function SectionHeader({
         className ?? "mt-7 mb-3 flex items-end justify-between gap-3 first:mt-0"
       }
     >
-      <div>
+      <div className="min-w-0">
         <h2 className={titleClass}>{title}</h2>
         {description && (
-          <p className="mt-[3px] text-[12.5px] text-fg-faint">{description}</p>
+          <p
+            className={`mt-[3px] text-[12.5px] text-fg-faint ${descriptionClassName ?? ""}`}
+          >
+            {description}
+          </p>
         )}
       </div>
       {action && (
