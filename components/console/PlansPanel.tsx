@@ -21,10 +21,13 @@ import {
 } from "@/lib/console/useBillingPlans";
 import { redirectToCheckout } from "@/lib/console/checkout-redirect";
 import { useAuth } from "@/components/console/AuthContext";
-import { useWalletBillingState } from "@/lib/console/useOwnerWallet";
+import {
+  SESSION_USAGE_OPTIONS,
+  useAccountUsage,
+} from "@/lib/console/useAccountUsage";
 import {
   includedUsageRemainingLabel,
-  includedUsageSummary,
+  includedUsageSummaryFromBalance,
 } from "@/lib/console/wallet-settlement-display";
 
 function isUsagePlan(
@@ -82,10 +85,18 @@ function clearCheckoutQueryParam(): void {
 export default function PlansPanel() {
   const { isConnected } = useAuth();
   const { state, reload, subscribe, changePlan } = useBillingPlans(isConnected);
-  const wallet = useWalletBillingState(isConnected);
+  const usage = useAccountUsage(isConnected, SESSION_USAGE_OPTIONS);
   const included =
-    wallet.state.status === "ready"
-      ? includedUsageSummary(wallet.state.wallet.billingState)
+    usage.status === "ready"
+      ? includedUsageSummaryFromBalance(
+          usage.data.balance,
+          state.status === "ready" && state.subscription
+            ? {
+                id: state.subscription.planId,
+                name: state.subscription.planName,
+              }
+            : undefined
+        )
       : null;
   const [busyPlanId, setBusyPlanId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);

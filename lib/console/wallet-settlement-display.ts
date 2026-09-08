@@ -1,4 +1,5 @@
 import type { BillingState, BillingStatus } from "@pymthouse/builder-sdk";
+import type { AccountUsageBalance } from "./account-usage";
 import { microsToUsd } from "./usage-capability-display";
 
 type IncludedUsageFunding = {
@@ -188,6 +189,37 @@ export function includedUsageSummary(
     planId,
     planName,
     resetsAt,
+  };
+}
+
+/**
+ * Session-user included allowance from `me/usage/balance`.
+ * Null when the user has no granted cycle (prepaid / invoice only).
+ */
+export function includedUsageSummaryFromBalance(
+  balance: AccountUsageBalance | null | undefined,
+  sourcePlan?: { id?: string | null; name?: string | null },
+): IncludedUsageSummary | null {
+  if (!balance) return null;
+  const remainingUsdMicros = balance.balanceUsdMicros;
+  const grantedUsdMicros = balance.lifetimeGrantedUsdMicros;
+  const consumedUsdMicros = balance.consumedUsdMicros;
+  const totalUsdMicros =
+    parseUsdMicros(grantedUsdMicros) > BigInt(0)
+      ? grantedUsdMicros
+      : remainingUsdMicros;
+  if (parseUsdMicros(totalUsdMicros) <= BigInt(0)) return null;
+
+  return {
+    remainingUsdMicros,
+    totalUsdMicros,
+    consumedUsdMicros,
+    remainingUsd: formatWalletUsd(remainingUsdMicros),
+    totalUsd: formatWalletUsd(totalUsdMicros),
+    consumedUsd: formatWalletUsd(consumedUsdMicros),
+    planId: sourcePlan?.id?.trim() || null,
+    planName: sourcePlan?.name?.trim() || null,
+    resetsAt: null,
   };
 }
 

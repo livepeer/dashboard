@@ -2,9 +2,12 @@
 
 import Link from "next/link";
 import { useAuth } from "@/components/console/AuthContext";
-import { useWalletBillingState } from "@/lib/console/useOwnerWallet";
+import {
+  SESSION_USAGE_OPTIONS,
+  useAccountUsage,
+} from "@/lib/console/useAccountUsage";
 import { microsToUsd } from "@/lib/console/usage-capability-display";
-import { includedUsageSummary } from "@/lib/console/wallet-settlement-display";
+import { includedUsageSummaryFromBalance } from "@/lib/console/wallet-settlement-display";
 
 /**
  * Sidebar balance meter. It shows the remaining balance against the amount
@@ -12,16 +15,15 @@ import { includedUsageSummary } from "@/lib/console/wallet-settlement-display";
  */
 export default function SidebarUsageCard() {
   const { isConnected } = useAuth();
-  const wallet = useWalletBillingState(isConnected);
+  const usage = useAccountUsage(isConnected, SESSION_USAGE_OPTIONS);
   const included =
-    wallet.state.status === "ready"
-      ? includedUsageSummary(wallet.state.wallet.billingState)
+    usage.status === "ready"
+      ? includedUsageSummaryFromBalance(usage.data.balance)
       : null;
 
-  if (
-    isConnected &&
-    (wallet.state.status === "loading" || wallet.state.status === "idle")
-  ) {
+  if (!isConnected) return null;
+
+  if (usage.status === "loading" || usage.status === "idle") {
     return (
       <div
         className="mx-1 mt-2 block animate-pulse rounded-md border border-subtle bg-sidebar-card-bg px-2.5 py-2"
@@ -34,7 +36,7 @@ export default function SidebarUsageCard() {
     );
   }
 
-  if (wallet.state.status === "error") {
+  if (usage.status === "error") {
     return (
       <Link
         href="/home"
@@ -48,25 +50,21 @@ export default function SidebarUsageCard() {
     );
   }
 
-  if (wallet.state.status !== "ready") return null;
+  if (usage.status !== "ready") return null;
 
-  let remainingUsd: number;
-  let issuedUsd: number;
-
-  if (included) {
-    remainingUsd = microsToUsd(included.remainingUsdMicros);
-    issuedUsd = microsToUsd(included.totalUsdMicros);
-  } else {
-    remainingUsd = microsToUsd(wallet.state.wallet.balance?.usdMicros ?? "0");
-    issuedUsd = Math.max(
-      remainingUsd,
-      microsToUsd(wallet.state.wallet.balance?.lifetimeGrantedUsdMicros ?? "0")
-    );
-  }
+  const remainingUsd = included
+    ? microsToUsd(included.remainingUsdMicros)
+    : microsToUsd(usage.data.balance?.balanceUsdMicros ?? "0");
+  const issuedUsd = included
+    ? microsToUsd(included.totalUsdMicros)
+    : Math.max(
+        remainingUsd,
+        microsToUsd(usage.data.balance?.lifetimeGrantedUsdMicros ?? "0")
+      );
 
   const pct =
     issuedUsd > 0 ? Math.min(100, (remainingUsd / issuedUsd) * 100) : 0;
-  const canSpend = wallet.state.wallet.billingState.canSpend;
+  const canSpend = usage.data.balance?.hasAccess ?? remainingUsd > 0;
 
   return (
     <Link

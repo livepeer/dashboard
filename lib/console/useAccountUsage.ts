@@ -43,6 +43,11 @@ type UseAccountUsageOptions = {
   includePrior?: boolean;
 };
 
+/** Session meters only need the live allowance, not the prior usage window. */
+export const SESSION_USAGE_OPTIONS: UseAccountUsageOptions = {
+  includePrior: false,
+};
+
 function normalizeOptions(
   periodDaysOrOptions: number | UseAccountUsageOptions = 30
 ): Required<

@@ -9,9 +9,12 @@ import Button from "@/components/design-system/Button";
 import { useAuth, type ConsoleUser } from "@/components/console/AuthContext";
 import { MCP_SERVER_URL } from "@/lib/constants";
 import { microsToUsd } from "@/lib/console/usage-capability-display";
-import { useWalletBillingState } from "@/lib/console/useOwnerWallet";
 import {
-  includedUsageSummary,
+  SESSION_USAGE_OPTIONS,
+  useAccountUsage,
+} from "@/lib/console/useAccountUsage";
+import {
+  includedUsageSummaryFromBalance,
   type IncludedUsageSummary,
 } from "@/lib/console/wallet-settlement-display";
 
@@ -111,8 +114,7 @@ type Runway = {
 };
 
 /**
- * Balance figure for the account runway: included balance, prepaid credits,
- * then metered overage.
+ * Balance figure for the session user's included allowance.
  */
 function Instrument({
   loading,
@@ -178,31 +180,24 @@ export default function UsageView() {
   const { isConnected, user } = useAuth();
   const [callsQuery, setCallsQuery] = useState("");
 
-  const walletState = useWalletBillingState(isConnected);
+  const usage = useAccountUsage(isConnected, SESSION_USAGE_OPTIONS);
 
   const included: IncludedUsageSummary | null =
-    walletState.state.status === "ready"
-      ? includedUsageSummary(walletState.state.wallet.billingState)
+    usage.status === "ready"
+      ? includedUsageSummaryFromBalance(usage.data.balance)
       : null;
 
   const runway: Runway | null = useMemo(() => {
-    if (walletState.state.status !== "ready" || !included) return null;
-    const funding = walletState.state.wallet.billingState.funding;
-    const overage = funding.overage;
+    if (usage.status !== "ready") return null;
     return {
-      includedTotal: microsToUsd(included.totalUsdMicros),
-      consumed: microsToUsd(included.consumedUsdMicros),
-      credits: microsToUsd(walletState.state.wallet.balance?.usdMicros ?? "0"),
-      overage:
-        overage.eligible && overage.remaining
-          ? microsToUsd(overage.remaining.usdMicros)
-          : null,
+      includedTotal: included ? microsToUsd(included.totalUsdMicros) : 0,
+      consumed: included ? microsToUsd(included.consumedUsdMicros) : 0,
+      credits: 0,
+      overage: null,
     };
-  }, [walletState.state, included]);
+  }, [usage.status, included]);
 
-  const loading =
-    walletState.state.status === "loading" ||
-    walletState.state.status === "idle";
+  const loading = usage.status === "loading" || usage.status === "idle";
 
   return (
     <div className="w-full pb-20">
@@ -221,12 +216,9 @@ export default function UsageView() {
         />
       </div>
 
-      {walletState.state.status === "error" && (
+      {usage.status === "error" && (
         <div className="mt-4 px-3 md:px-7">
-          <UsageLoadError
-            message={walletState.state.message}
-            onRetry={walletState.reload}
-          />
+          <UsageLoadError message={usage.message} onRetry={usage.reload} />
         </div>
       )}
 
