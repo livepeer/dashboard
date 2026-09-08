@@ -55,6 +55,16 @@ it("uses distinct, simplified MCP approval and revocation dialogs", async () => 
   expect(dialog.querySelector("img")?.getAttribute("src")).toBe(
     "/images/console/explore/flux-schnell.webp"
   );
+  expect(dialog.className).toContain("sm:max-w-sm");
+  expect(
+    dialog.querySelector("[data-slot='dialog-close']")?.className
+  ).toContain("bg-transparent");
+  expect(
+    within(dialog).getByRole("button", { name: "Cancel" }).className
+  ).toContain("h-12");
+  expect(
+    within(dialog).getByRole("button", { name: "Approve MCP access" }).className
+  ).toContain("h-12");
   expect(dialog.querySelector("details")).toBeNull();
   fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());

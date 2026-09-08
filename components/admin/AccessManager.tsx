@@ -558,8 +558,11 @@ export default function AccessManager() {
           if (!open) setConfirmation(null);
         }}
       >
-        <DialogContent className="max-h-[90vh] gap-0 overflow-hidden p-0 sm:max-w-md">
-          <div className="h-52 overflow-hidden bg-muted sm:h-56">
+        <DialogContent
+          className="max-h-[90vh] gap-0 overflow-hidden p-0 sm:max-w-sm"
+          closeButtonClassName="bg-transparent text-white hover:bg-black/25 hover:text-white"
+        >
+          <div className="aspect-[4/3] w-full overflow-hidden bg-muted">
             <img
               src={
                 isApproving
@@ -581,10 +584,12 @@ export default function AccessManager() {
                   : `Remove MCP access for ${confirmationCount} selected ${confirmationCount === 1 ? "person" : "people"}. Running jobs won’t be stopped.`}
               </DialogDescription>
             </div>
-            <div className="flex justify-end gap-2">
+            <div className="grid grid-cols-2 gap-2">
               <Button
                 type="button"
                 variant="outline"
+                size="lg"
+                className="h-12 w-full rounded-sm"
                 onClick={() => setConfirmation(null)}
               >
                 Cancel
@@ -592,6 +597,8 @@ export default function AccessManager() {
               <Button
                 type="button"
                 variant={isApproving ? "default" : "destructive"}
+                size="lg"
+                className="h-12 w-full rounded-sm"
                 onClick={() => {
                   if (confirmation) void execute(confirmation);
                 }}
