@@ -89,14 +89,6 @@ export async function GET(request: NextRequest) {
 
   try {
     const session = await requireConsoleSession();
-    let owner;
-    try {
-      owner = await resolveRunOwner(session.externalUserId);
-      if (owner.userId !== session.canonicalUserId)
-        throw new Error("run_owner_mismatch");
-    } catch {
-      throw new AccessError("unavailable");
-    }
     const appId = configuredPymthouseScope().appId;
     if (gatewayRequestIds.length > 0) {
       const payload = await fetchAccountRequestsForExternalUser({
@@ -159,11 +151,40 @@ export async function GET(request: NextRequest) {
           requestedGatewayRequestIds: gatewayRequestIds.slice(0, 10),
         });
       }
-      await recordRunUsage(owner, persistableTicketFees(scoped));
       return NextResponse.json(
         { ...payload, items: scoped, nextCursor: null },
         { headers: PYMTHOUSE_NO_STORE_HEADERS }
       );
+    }
+    if (includeCorrelated) {
+      const payload = await fetchAccountRequestsForExternalUser({
+        externalUserId: session.externalUserId,
+        email: session.email,
+        cursor,
+        limit,
+      });
+      if (
+        payload.externalUserId !== session.externalUserId ||
+        payload.clientId !== appId
+      )
+        throw new AccessError("unavailable");
+      const scoped = payload.items.filter(
+        (item) =>
+          item.externalUserId === session.externalUserId &&
+          item.clientId === appId
+      );
+      return NextResponse.json(
+        { ...payload, items: scoped },
+        { headers: PYMTHOUSE_NO_STORE_HEADERS }
+      );
+    }
+    let owner;
+    try {
+      owner = await resolveRunOwner(session.externalUserId);
+      if (owner.userId !== session.canonicalUserId)
+        throw new Error("run_owner_mismatch");
+    } catch {
+      throw new AccessError("unavailable");
     }
     let next = cursor;
     // Upstream cursors are independent from durable-run cursors. Skip at most
@@ -186,12 +207,6 @@ export async function GET(request: NextRequest) {
           item.clientId === appId
       );
       await recordRunUsage(owner, persistableTicketFees(scoped));
-      if (includeCorrelated) {
-        return NextResponse.json(
-          { ...payload, items: scoped },
-          { headers: PYMTHOUSE_NO_STORE_HEADERS }
-        );
-      }
       const correlated = new Set(
         await existingRunGatewayIds(
           owner,

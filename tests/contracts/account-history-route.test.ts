@@ -141,7 +141,8 @@ it("looks up Cost by gateway request id without walking usage pages", async () =
     limit: 50,
     gatewayRequestIds: ["owned"],
   });
-  expect(recordRunUsage).toHaveBeenCalledTimes(1);
+  expect(recordRunUsage).not.toHaveBeenCalled();
+  expect(resolveRunOwner).not.toHaveBeenCalled();
 });
 
 it("rejects gatewayRequestId unless includeCorrelated is enabled", async () => {
@@ -181,6 +182,8 @@ it("falls back to paged live usage when by-id misses the first page", async () =
     cursor: "next-page",
     limit: 50,
   });
+  expect(recordRunUsage).not.toHaveBeenCalled();
+  expect(resolveRunOwner).not.toHaveBeenCalled();
 });
 
 it("continues scanning beyond five pages for by-id Cost lookup", async () => {
@@ -202,6 +205,8 @@ it("continues scanning beyond five pages for by-id Cost lookup", async () => {
   expect(response.status).toBe(200);
   expect((await response.json()).items).toEqual([row("owned")]);
   expect(fetchAccountRequestsForExternalUser).toHaveBeenCalledTimes(7);
+  expect(recordRunUsage).not.toHaveBeenCalled();
+  expect(resolveRunOwner).not.toHaveBeenCalled();
 });
 
 it("caps an overflowing gatewayRequestId list instead of 400ing Cost", async () => {
@@ -229,7 +234,6 @@ it("returns scoped matched receipts when Home explicitly requests correlation", 
       "next"
     )
   );
-  vi.mocked(existingRunGatewayIds).mockResolvedValue(["owned"]);
   const response = await GET(
     new NextRequest(
       "http://localhost/api/pymthouse/account-requests?includeCorrelated=1"
@@ -239,10 +243,29 @@ it("returns scoped matched receipts when Home explicitly requests correlation", 
   const result = await response.json();
   expect(result.items).toEqual([row("owned")]);
   expect(result.nextCursor).toBe("next");
-  expect(recordRunUsage).toHaveBeenCalledTimes(1);
+  expect(recordRunUsage).not.toHaveBeenCalled();
+  expect(existingRunGatewayIds).not.toHaveBeenCalled();
+  expect(resolveRunOwner).not.toHaveBeenCalled();
   expect(JSON.stringify(vi.mocked(recordRunUsage).mock.calls)).not.toContain(
     "event-other"
   );
+});
+
+it("does not depend on run-owner/postgres paths for includeCorrelated queries", async () => {
+  vi.mocked(fetchAccountRequestsForExternalUser).mockResolvedValue(
+    payload([row("owned")], null)
+  );
+  vi.mocked(resolveRunOwner).mockRejectedValue(new Error("run_owner_unresolved"));
+  const response = await GET(
+    new NextRequest(
+      "http://localhost/api/pymthouse/account-requests?includeCorrelated=1"
+    )
+  );
+  expect(response.status).toBe(200);
+  expect((await response.json()).items).toEqual([row("owned")]);
+  expect(resolveRunOwner).not.toHaveBeenCalled();
+  expect(recordRunUsage).not.toHaveBeenCalled();
+  expect(existingRunGatewayIds).not.toHaveBeenCalled();
 });
 
 it("walks entirely matched pages until legacy results using actual upstream continuation", async () => {
