@@ -1,0 +1,102 @@
+name: Deploy production (Vercel)
+
+# Deploys the Console Vercel project after applying Drizzle migrations when
+# a journal exists. Native Git production builds are skipped via vercel.json
+# `ignoreCommand` so this workflow is the only path that ships prod.
+#
+# Enable with repository variable:
+#   VERCEL_PRODUCTION_AUTO_DEPLOY=true
+#
+# Required secrets on GitHub environment `vercel / production`:
+#   VERCEL_TOKEN
+#   DATABASE_URL — direct/unpooled URL for the shared Console Neon fork
+#     used by production and preview. Do not point this at waitlist
+#     primary `main` (`br-wild-boat-auv00x69`); that cluster already owns
+#     drizzle.__drizzle_migrations for 0000–0004.
+#
+# Merge the mcp_assets drizzle PR before enabling AUTO_DEPLOY, or this
+# job will skip `pnpm db:migrate` (no journal yet) and only build/deploy.
+#
+# Sensitive Vercel env vars are not exported by `vercel pull`. DATABASE_URL
+# for migrate must be the GitHub environment secret.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production-vercel
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  deployments: write
+
+jobs:
+  deploy:
+    if: vars.VERCEL_PRODUCTION_AUTO_DEPLOY == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment:
+      name: vercel / production
+      url: ${{ vars.VERCEL_PRODUCTION_URL || 'https://livepeer-console.vercel.app' }}
+    env:
+      VERCEL_ORG_ID: team_GOhUouAF8PsQO4CVvzpIriQV
+      VERCEL_PROJECT_ID: prj_6ocLVzxJuYfOKC8VGDZaMuoYK6FP
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel@56.4.0 --ignore-scripts
+
+      - name: Pull Vercel project settings
+        run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+
+      - name: Apply database migrations
+        run: |
+          set -euo pipefail
+          if [ -z "${DATABASE_URL:-}" ]; then
+            echo "DATABASE_URL secret is required on the vercel / production environment."
+            echo "Set it to the shared Console Neon fork (not waitlist primary main)."
+            exit 1
+          fi
+          if [ ! -f drizzle/meta/_journal.json ]; then
+            echo "No drizzle journal yet; skipping migrate until the schema PR lands."
+            exit 0
+          fi
+          pnpm db:migrate
+
+      - name: Build
+        run: vercel build --prod --token="$VERCEL_TOKEN"
+
+      - name: Deploy to Console production
+        id: vercel_deploy
+        run: |
+          deployment_url=$(vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN")
+          echo "deployment_url=$deployment_url" >> "$GITHUB_OUTPUT"
+          echo "Vercel alias: $deployment_url"
+          echo "Canonical URL: ${{ vars.VERCEL_PRODUCTION_URL || 'https://livepeer-console.vercel.app' }}"
+
+      - name: Promote deployment (assign custom domains)
+        run: vercel promote "${{ steps.vercel_deploy.outputs.deployment_url }}" --yes --token="$VERCEL_TOKEN"
