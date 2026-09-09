@@ -24,8 +24,8 @@ importers:
         specifier: ^0.6.5
         version: 0.6.5
       '@pymthouse/gateway-web':
-        specifier: 0.3.2
-        version: 0.3.2
+        specifier: 0.3.4
+        version: 0.3.4
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -1026,8 +1026,8 @@ packages:
     resolution: {integrity: sha512-oWQC3y7vTqOKG+fEaZRc7TtbIMJaLZZoS6kCqBzF5M4489wGS31LlE2gwhYDEuVNAeyoJwaK/Uu+mfEe8TwGFw==}
     engines: {node: '>=20'}
 
-  '@pymthouse/gateway-web@0.3.2':
-    resolution: {integrity: sha512-7G66ezZ8ntOFf7S6L9RWK+qSUrEjB5MF74UchcKqgwMYs8RcQJm1wxEoQF1R5ntr7BzSSkjnlqt5khHZflAqQA==}
+  '@pymthouse/gateway-web@0.3.4':
+    resolution: {integrity: sha512-tsxjD9P12LSsRZ6vGpVAjLd/imbuVq3aaynqggQhTpilJshYvyLHvpsO2WuG8+k8Nb5x7C3uACRIlyNmmZ1PNw==}
     engines: {node: '>=20'}
 
   '@reduxjs/toolkit@2.12.0':
@@ -4443,7 +4443,7 @@ snapshots:
     dependencies:
       oauth4webapi: 3.8.8
 
-  '@pymthouse/gateway-web@0.3.2':
+  '@pymthouse/gateway-web@0.3.4':
     dependencies:
       undici: 7.29.1
 

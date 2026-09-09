@@ -248,6 +248,7 @@ export async function executeDurableRun(
         response_url: result.responseUrl,
         orchestrator: result.orchestrator,
         elapsed_ms: result.elapsedMs,
+        billable_units: result.billableUnits,
         gateway_request_id: result.gatewayRequestId || gatewayRequestId,
         run_id: run.id,
         ...(!saved ? { persist_error: "run_store_unavailable" } : {}),
