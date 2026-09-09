@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-**Stack:** Next.js 15 (App Router), React 19, TypeScript, Tailwind CSS v4, Framer Motion 11, Geist Sans/Mono, Lucide, Recharts, wavesurfer.js. Auth via `@auth0/nextjs-auth0`; billing/usage/keys via `@pymthouse/builder-sdk`. Package manager: **pnpm**.
+**Stack:** Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS v4, Framer Motion 11, Geist Sans/Mono, Lucide, Recharts, wavesurfer.js. Auth via `@auth0/nextjs-auth0`; billing/usage/keys via `@pymthouse/builder-sdk`. Package manager: **pnpm**.
 
 **Tests:** there are ~9 `*.test.ts` files under `lib/console/`, but **no test runner is installed and no `test` script exists** — they cannot currently run. Either wire up a runner or treat those files as documentation; don't assume `pnpm test` works.
 
@@ -16,7 +16,7 @@
 
 ## Environment
 
-Local dev needs `.env.local` (see `.env.example`). Auth0 vars are required — without them `middleware.ts` throws `DomainResolutionError` on every request and the whole app 404s. Preview values can be pulled with `vercel env pull --environment=preview` against `livepeer-foundation/console`, except values Vercel marks **Sensitive** (`AUTH0_SECRET`, `AUTH0_CLIENT_SECRET`, `LP_DASHBOARD_SESSION_SECRET`, `PYMTHOUSE_M2M_CLIENT_SECRET`) which the API will not return to anyone.
+Local dev needs `.env.local` (see `.env.example`). Auth0 vars are required — without them `proxy.ts` throws `DomainResolutionError` on every request and the whole app 404s. Preview values can be pulled with `vercel env pull --environment=preview` against `livepeer-foundation/console`, except values Vercel marks **Sensitive** (`AUTH0_SECRET`, `AUTH0_CLIENT_SECRET`, `LP_DASHBOARD_SESSION_SECRET`, `PYMTHOUSE_M2M_CLIENT_SECRET`) which the API will not return to anyone.
 
 `CONSOLE_DEV_MOCK=1` serves auth + PymtHouse endpoints from `lib/console/dev-mock.ts` so auth-gated surfaces can be worked on without credentials. Hard-disabled when `NODE_ENV === "production"`.
 

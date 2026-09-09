@@ -1,7 +1,7 @@
 import { identitySyncPath } from "@/lib/identity/sync-return";
 
 /** SDK login route. Must be a full navigation (`<a>` / `location.assign`),
- *  not a Next.js client transition — middleware mounts `/auth/*`. */
+ *  not a Next.js client transition — proxy.ts mounts `/auth/*`. */
 export const AUTH_LOGIN_PATH = "/auth/login";
 
 const DEFAULT_RETURN_TO = "/home";

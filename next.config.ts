@@ -5,23 +5,12 @@ const posthogProxyPath = "/lpx";
 const nextConfig: NextConfig = {
   // Keep production-build checks separate from a running local dev server.
   distDir: process.env.CONSOLE_DIST_DIR || ".next",
+  // Stop `next dev` from appending its generated block to CLAUDE.md.
+  agentRules: false,
   allowedDevOrigins: ["studio.tail0de21e.ts.net"],
-  // Bundler-agnostic polling interval for file watching — works with both
-  // Turbopack (default in Next 15) and Webpack. Needed because the native
-  // file watcher doesn't pick up changes reliably in git worktrees.
+  // Poll for file changes: the native watcher misses edits in git worktrees.
   watchOptions: {
     pollIntervalMs: 1000,
-  },
-  webpack: (config) => {
-    // Additional Webpack-specific watch tweaks for git worktree symlinks
-    // (only takes effect when Turbopack is disabled).
-    config.watchOptions = {
-      ...config.watchOptions,
-      followSymlinks: true,
-      poll: 1000,
-      aggregateTimeout: 300,
-    };
-    return config;
   },
   async rewrites() {
     return [

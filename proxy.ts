@@ -12,7 +12,7 @@ function copyAuthCookies(from: NextResponse, to: NextResponse): NextResponse {
 }
 
 // Routes that exist only for a signed-in user. Signed-out requests are
-// redirected here, in middleware, rather than by the page: a client-side
+// redirected here, in the proxy, rather than by the page: a client-side
 // redirect runs after the console chrome has already painted, so a cold
 // signed-out load flashed the sidebar for a frame before landing on /login.
 // Home keeps the in-shell sign-in wall; Install redirects before the shell.
@@ -20,7 +20,7 @@ function isSessionOnlyPath(pathname: string): boolean {
   return pathname === "/" || pathname === "/install";
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   // Dev-only: answer auth + PymtHouse endpoints from fixtures so auth-gated
   // surfaces can be designed without credentials. See lib/console/dev-mock.ts.
   const devMock =
@@ -37,7 +37,7 @@ export async function middleware(request: NextRequest) {
 
   const authRes = await auth0.middleware(request);
   const { pathname } = request.nextUrl;
-  // Edge middleware manages provider cookies and early signed-out routing.
+  // The proxy manages provider cookies and early signed-out routing.
   // Admission is checked in Node page/API services on every protected request.
   if (!isSessionOnlyPath(pathname)) {
     return authRes;

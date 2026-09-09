@@ -4,10 +4,10 @@
  *
  * Enabled by `CONSOLE_DEV_MOCK=1` in `.env.local`; hard-disabled when
  * `NODE_ENV === "production"` so it can never answer a deployed request.
- * Middleware short-circuits to these payloads before `auth0.middleware()`
+ * The proxy short-circuits to these payloads before `auth0.middleware()`
  * runs, so no Auth0 secret is needed to reach the view.
  *
- * Delete this file (and the guard in `middleware.ts`) once real credentials
+ * Delete this file (and the guard in `proxy.ts`) once real credentials
  * are in place.
  */
 
