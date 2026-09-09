@@ -121,6 +121,29 @@ it("suppresses owned run tickets, persists fee-only evidence, and joins assets o
   ]);
 });
 
+it("looks up Cost by gateway request id without walking usage pages", async () => {
+  vi.mocked(fetchAccountRequestsForExternalUser).mockResolvedValue(
+    payload([row("owned"), row("noise")], null)
+  );
+  const response = await GET(
+    new NextRequest(
+      "http://localhost/api/pymthouse/account-requests?includeCorrelated=1&gatewayRequestId=owned"
+    )
+  );
+  expect(response.status).toBe(200);
+  const result = await response.json();
+  expect(result.items).toEqual([row("owned")]);
+  expect(result.nextCursor).toBeNull();
+  expect(fetchAccountRequestsForExternalUser).toHaveBeenCalledTimes(1);
+  expect(fetchAccountRequestsForExternalUser).toHaveBeenCalledWith({
+    externalUserId: "eu_fixture",
+    email: "fixture@example.invalid",
+    limit: 50,
+    gatewayRequestIds: ["owned"],
+  });
+  expect(recordRunUsage).toHaveBeenCalledTimes(1);
+});
+
 it("returns scoped matched receipts when Home explicitly requests correlation", async () => {
   vi.mocked(fetchAccountRequestsForExternalUser).mockResolvedValue(
     payload(

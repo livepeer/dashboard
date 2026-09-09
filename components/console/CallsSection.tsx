@@ -28,8 +28,29 @@ export default function CallsSection({
     },
     ownerKey
   );
-  // Correlate billing receipts with saved runs; billing is not a second history feed.
-  const billing = useAccountRequests(isConnected, ownerKey, true);
+  const requestId = useSearchParams().get("request");
+  const detail = useRunDetail(
+    "/api/console/runs",
+    requestId,
+    ownerKey,
+    isConnected
+  );
+  const gatewayRequestIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const run of history.page?.items ?? []) {
+      if (run.gatewayRequestId) ids.add(run.gatewayRequestId);
+    }
+    if (detail.detail?.gatewayRequestId)
+      ids.add(detail.detail.gatewayRequestId);
+    return [...ids];
+  }, [history.page, detail.detail]);
+  // Cost is the signed-ticket fee for this run id, not a second history feed.
+  const billing = useAccountRequests(
+    isConnected && !history.loading && gatewayRequestIds.length > 0,
+    ownerKey,
+    true,
+    gatewayRequestIds
+  );
   const billingRows = billing.status === "ready" ? billing.rows : null;
   const feeByGateway = useMemo(() => {
     const fees = new Map<string, { costDisplay: string; costExact?: string }>();
@@ -44,7 +65,6 @@ export default function CallsSection({
     return fees;
   }, [billingRows]);
   const router = useRouter();
-  const requestId = useSearchParams().get("request");
   const recorded = useMemo(
     () =>
       history.page?.items.map((run) =>
@@ -55,12 +75,6 @@ export default function CallsSection({
   const rows = recorded;
   const found = rows.find(
     (row) => row.id === requestId || row.gatewayRequestId === requestId
-  );
-  const detail = useRunDetail(
-    "/api/console/runs",
-    requestId,
-    ownerKey,
-    isConnected
   );
   const openRow =
     detail.detail &&

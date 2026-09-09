@@ -254,6 +254,7 @@ export async function fetchAccountRequestsForExternalUser(input: {
   email?: string;
   cursor?: string | null;
   limit?: number;
+  gatewayRequestIds?: string[];
 }): Promise<AccountRequestsPayload> {
   const publicClientId = readPublicClientId();
   const minted = await mintEndUserAccessToken(
@@ -266,8 +267,13 @@ export async function fetchAccountRequestsForExternalUser(input: {
   const range = historyRange();
   url.searchParams.set("from", range.from);
   url.searchParams.set("to", range.to);
-  if (input.cursor) url.searchParams.set("cursor", input.cursor);
+  if (input.cursor && !input.gatewayRequestIds?.length)
+    url.searchParams.set("cursor", input.cursor);
   if (input.limit != null) url.searchParams.set("limit", String(input.limit));
+  for (const id of input.gatewayRequestIds ?? []) {
+    const trimmed = id.trim();
+    if (trimmed) url.searchParams.append("gatewayRequestId", trimmed);
+  }
 
   const response = await fetch(url.toString(), {
     method: "GET",

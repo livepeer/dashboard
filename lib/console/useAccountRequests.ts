@@ -21,11 +21,16 @@ type AccountRequestsState =
 async function fetchRequestsPage(
   cursor: string | null,
   signal: AbortSignal,
-  includeCorrelated = false
+  includeCorrelated = false,
+  gatewayRequestIds: string[] = []
 ): Promise<ReadyState> {
   const params = new URLSearchParams({ limit: "50" });
   if (includeCorrelated) params.set("includeCorrelated", "1");
   if (cursor) params.set("cursor", cursor);
+  for (const id of gatewayRequestIds) {
+    const trimmed = id.trim();
+    if (trimmed) params.append("gatewayRequestId", trimmed);
+  }
   const response = await fetch(`/api/pymthouse/account-requests?${params}`, {
     cache: "no-store",
     signal,
@@ -49,10 +54,16 @@ async function fetchRequestsPage(
 export function useAccountRequests(
   enabled: boolean,
   ownerKey?: string,
-  includeCorrelated = false
+  includeCorrelated = false,
+  gatewayRequestIds: string[] = []
 ) {
+  const idKey = gatewayRequestIds.join("\0");
   const scope = enabled
-    ? JSON.stringify([ownerKey ?? "authenticated-instance", includeCorrelated])
+    ? JSON.stringify([
+        ownerKey ?? "authenticated-instance",
+        includeCorrelated,
+        idKey,
+      ])
     : "disabled";
   const [stored, setStored] = useState<{
     scope: string;
@@ -70,7 +81,12 @@ export function useAccountRequests(
     appendBusy.current = false;
     setStored({ scope, state: { status: enabled ? "loading" : "idle" } });
     if (enabled)
-      void fetchRequestsPage(null, controller.signal, includeCorrelated)
+      void fetchRequestsPage(
+        null,
+        controller.signal,
+        includeCorrelated,
+        gatewayRequestIds
+      )
         .then((page) => {
           if (generation.current === id) setStored({ scope, state: page });
         })
@@ -92,7 +108,7 @@ export function useAccountRequests(
       controller.abort();
       appendController.current?.abort();
     };
-  }, [scope, enabled, refresh, includeCorrelated]);
+  }, [scope, enabled, refresh, includeCorrelated, idKey]);
 
   const state = useMemo<AccountRequestsState>(
     () =>
@@ -115,7 +131,8 @@ export function useAccountRequests(
       const page = await fetchRequestsPage(
         state.nextCursor,
         controller.signal,
-        includeCorrelated
+        includeCorrelated,
+        gatewayRequestIds
       );
       if (generation.current !== id) return;
       setStored((previous) => {
@@ -155,7 +172,7 @@ export function useAccountRequests(
     } finally {
       if (generation.current === id) appendBusy.current = false;
     }
-  }, [enabled, state, scope, includeCorrelated]);
+  }, [enabled, state, scope, includeCorrelated, idKey]);
   const reload = useCallback(() => setRefresh((value) => value + 1), []);
   return { ...state, reload, loadMore };
 }

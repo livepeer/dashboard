@@ -63,6 +63,28 @@ it("keeps old history and pagination even when its media is unavailable", async 
   expect(url.searchParams.get("limit")).toBe("50");
 });
 
+it("asks PymtHouse for the signed-ticket rows by gateway request id", async () => {
+  const fetch = vi.fn<typeof globalThis.fetch>(async () =>
+    Response.json({
+      items: [],
+      nextCursor: null,
+      openMeterConfigured: true,
+    })
+  );
+  vi.stubGlobal("fetch", fetch);
+  await fetchAccountRequestsForExternalUser({
+    externalUserId: "test-user",
+    limit: 50,
+    gatewayRequestIds: ["job_saved", "job_other"],
+  });
+  const url = new URL(fetch.mock.calls[0][0] as string);
+  expect(url.searchParams.getAll("gatewayRequestId")).toEqual([
+    "job_saved",
+    "job_other",
+  ]);
+  expect(url.searchParams.get("cursor")).toBeNull();
+});
+
 it("does not label History with media expiry or a seven-day limit", () => {
   const source = readFileSync("components/console/CallsSection.tsx", "utf8");
   expect(source).toContain('title="History"');

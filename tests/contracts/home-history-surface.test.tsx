@@ -181,9 +181,13 @@ it("joins a correlated ticket fee onto the saved run, without adding a billing r
   await screen.findByRole("button", { name: "Inspect saved-run" });
   expect(screen.getByText("$0.0010")).toBeTruthy();
   expect(
-    fetcher.mock.calls.some(([url]) =>
-      String(url).includes("includeCorrelated=1")
-    )
+    fetcher.mock.calls.some(([url]) => {
+      const href = String(url);
+      return (
+        href.includes("includeCorrelated=1") &&
+        href.includes("gatewayRequestId=job_saved")
+      );
+    })
   ).toBe(true);
   expect(screen.queryByText("legacy-only-model")).toBeNull();
 });
