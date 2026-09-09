@@ -121,6 +121,29 @@ it("suppresses owned run tickets, persists fee-only evidence, and joins assets o
   ]);
 });
 
+it("returns scoped matched receipts when Home explicitly requests correlation", async () => {
+  vi.mocked(fetchAccountRequestsForExternalUser).mockResolvedValue(
+    payload(
+      [row("owned"), { ...row("other"), externalUserId: "eu_other" }],
+      "next"
+    )
+  );
+  vi.mocked(existingRunGatewayIds).mockResolvedValue(["owned"]);
+  const response = await GET(
+    new NextRequest(
+      "http://localhost/api/pymthouse/account-requests?includeCorrelated=1"
+    )
+  );
+  expect(response.status).toBe(200);
+  const result = await response.json();
+  expect(result.items).toEqual([row("owned")]);
+  expect(result.nextCursor).toBe("next");
+  expect(recordRunUsage).toHaveBeenCalledTimes(1);
+  expect(JSON.stringify(vi.mocked(recordRunUsage).mock.calls)).not.toContain(
+    "event-other"
+  );
+});
+
 it("walks entirely matched pages until legacy results using actual upstream continuation", async () => {
   vi.mocked(fetchAccountRequestsForExternalUser)
     .mockResolvedValueOnce(payload([row("owned-1")], "second"))

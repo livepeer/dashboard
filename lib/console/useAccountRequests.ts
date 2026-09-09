@@ -20,9 +20,11 @@ type AccountRequestsState =
 
 async function fetchRequestsPage(
   cursor: string | null,
-  signal: AbortSignal
+  signal: AbortSignal,
+  includeCorrelated = false
 ): Promise<ReadyState> {
   const params = new URLSearchParams({ limit: "50" });
+  if (includeCorrelated) params.set("includeCorrelated", "1");
   if (cursor) params.set("cursor", cursor);
   const response = await fetch(`/api/pymthouse/account-requests?${params}`, {
     cache: "no-store",
@@ -44,8 +46,14 @@ async function fetchRequestsPage(
 
 /** Private history is instance-local, never a global cross-account cache.
  * ownerKey invalidates in-flight work even when both old/new accounts are enabled. */
-export function useAccountRequests(enabled: boolean, ownerKey?: string) {
-  const scope = enabled ? (ownerKey ?? "authenticated-instance") : "disabled";
+export function useAccountRequests(
+  enabled: boolean,
+  ownerKey?: string,
+  includeCorrelated = false
+) {
+  const scope = enabled
+    ? JSON.stringify([ownerKey ?? "authenticated-instance", includeCorrelated])
+    : "disabled";
   const [stored, setStored] = useState<{
     scope: string;
     state: AccountRequestsState;
@@ -62,7 +70,7 @@ export function useAccountRequests(enabled: boolean, ownerKey?: string) {
     appendBusy.current = false;
     setStored({ scope, state: { status: enabled ? "loading" : "idle" } });
     if (enabled)
-      void fetchRequestsPage(null, controller.signal)
+      void fetchRequestsPage(null, controller.signal, includeCorrelated)
         .then((page) => {
           if (generation.current === id) setStored({ scope, state: page });
         })
@@ -84,7 +92,7 @@ export function useAccountRequests(enabled: boolean, ownerKey?: string) {
       controller.abort();
       appendController.current?.abort();
     };
-  }, [scope, enabled, refresh]);
+  }, [scope, enabled, refresh, includeCorrelated]);
 
   const state = useMemo<AccountRequestsState>(
     () =>
@@ -104,7 +112,11 @@ export function useAccountRequests(enabled: boolean, ownerKey?: string) {
     appendController.current = controller;
     appendBusy.current = true;
     try {
-      const page = await fetchRequestsPage(state.nextCursor, controller.signal);
+      const page = await fetchRequestsPage(
+        state.nextCursor,
+        controller.signal,
+        includeCorrelated
+      );
       if (generation.current !== id) return;
       setStored((previous) => {
         if (previous.scope !== scope || previous.state.status !== "ready")
@@ -143,7 +155,7 @@ export function useAccountRequests(enabled: boolean, ownerKey?: string) {
     } finally {
       if (generation.current === id) appendBusy.current = false;
     }
-  }, [enabled, state, scope]);
+  }, [enabled, state, scope, includeCorrelated]);
   const reload = useCallback(() => setRefresh((value) => value + 1), []);
   return { ...state, reload, loadMore };
 }

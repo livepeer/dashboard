@@ -180,6 +180,11 @@ it("joins a correlated ticket fee onto the saved run, without adding a billing r
   render(<CallsSection query="" onQueryChange={vi.fn()} />);
   await screen.findByRole("button", { name: "Inspect saved-run" });
   expect(screen.getByText("$0.0010")).toBeTruthy();
+  expect(
+    fetcher.mock.calls.some(([url]) =>
+      String(url).includes("includeCorrelated=1")
+    )
+  ).toBe(true);
   expect(screen.queryByText("legacy-only-model")).toBeNull();
 });
 

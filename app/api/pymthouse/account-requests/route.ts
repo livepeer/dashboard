@@ -19,6 +19,9 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
+  // Home joins receipts onto durable runs; legacy consumers still omit matches.
+  const includeCorrelated =
+    request.nextUrl.searchParams.get("includeCorrelated") === "1";
   const cursor =
     request.nextUrl.searchParams.get("cursor")?.trim() || undefined;
   const limitRaw = request.nextUrl.searchParams.get("limit");
@@ -96,6 +99,12 @@ export async function GET(request: NextRequest) {
               ticket.gatewayRequestId.length <= 512
           )
       );
+      if (includeCorrelated) {
+        return NextResponse.json(
+          { ...payload, items: scoped },
+          { headers: PYMTHOUSE_NO_STORE_HEADERS }
+        );
+      }
       const correlated = new Set(
         await existingRunGatewayIds(
           owner,

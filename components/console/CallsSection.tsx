@@ -29,7 +29,7 @@ export default function CallsSection({
     ownerKey
   );
   // Correlate billing receipts with saved runs; billing is not a second history feed.
-  const billing = useAccountRequests(isConnected, ownerKey);
+  const billing = useAccountRequests(isConnected, ownerKey, true);
   const billingRows = billing.status === "ready" ? billing.rows : null;
   const feeByGateway = useMemo(() => {
     const fees = new Map<string, { costDisplay: string; costExact?: string }>();
