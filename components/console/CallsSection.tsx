@@ -29,12 +29,28 @@ export default function CallsSection({
     ownerKey
   );
   // Correlate billing receipts with saved runs; billing is not a second history feed.
-  useAccountRequests(isConnected, ownerKey);
+  const billing = useAccountRequests(isConnected, ownerKey);
+  const billingRows = billing.status === "ready" ? billing.rows : null;
+  const feeByGateway = useMemo(() => {
+    const fees = new Map<string, { costDisplay: string; costExact?: string }>();
+    if (!billingRows) return fees;
+    for (const row of billingRows) {
+      if (!row.gatewayRequestId || row.costDisplay === "—") continue;
+      fees.set(row.gatewayRequestId, {
+        costDisplay: row.costDisplay,
+        ...(row.costExact ? { costExact: row.costExact } : {}),
+      });
+    }
+    return fees;
+  }, [billingRows]);
   const router = useRouter();
   const requestId = useSearchParams().get("request");
   const recorded = useMemo(
-    () => history.page?.items.map(runToActivity) ?? [],
-    [history.page]
+    () =>
+      history.page?.items.map((run) =>
+        runToActivity(run, feeByGateway.get(run.gatewayRequestId))
+      ) ?? [],
+    [history.page, feeByGateway]
   );
   const rows = recorded;
   const found = rows.find(
@@ -47,7 +63,14 @@ export default function CallsSection({
     isConnected
   );
   const openRow =
-    found ?? (detail.detail ? runToActivity(detail.detail) : null);
+    detail.detail &&
+    (detail.detail.id === requestId ||
+      detail.detail.gatewayRequestId === requestId)
+      ? runToActivity(
+          detail.detail,
+          feeByGateway.get(detail.detail.gatewayRequestId)
+        )
+      : (found ?? null);
   const select = (row: AccountActivityRow) =>
     router.push("/home?request=" + encodeURIComponent(row.id), {
       scroll: false,

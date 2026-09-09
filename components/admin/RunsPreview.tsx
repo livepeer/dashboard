@@ -38,9 +38,15 @@ export default function RunsPreview() {
   );
   const detail = useRunDetail("/api/admin/runs", selected, ownerKey, enabled);
   const rows = useMemo(
-    () => history.page?.items.map(runToActivity) ?? [],
+    () => history.page?.items.map((run) => runToActivity(run)) ?? [],
     [history.page]
   );
+  const selectedRow = useMemo(() => {
+    if (detail.detail && detail.detail.id === selected) {
+      return runToActivity(detail.detail);
+    }
+    return rows.find((row) => row.id === selected) ?? null;
+  }, [detail.detail, rows, selected]);
   const counts = history.page?.counts;
   const summary = [
     { label: "Total runs", value: counts?.total },
@@ -173,7 +179,7 @@ export default function RunsPreview() {
         </section>
       </div>
       <CallDetailDrawer
-        row={rows.find((row) => row.id === selected) ?? null}
+        row={selectedRow}
         rows={rows}
         open={!!selected}
         onClose={() => setSelected(null)}
