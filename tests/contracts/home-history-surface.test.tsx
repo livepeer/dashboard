@@ -4,9 +4,11 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import CallsSection from "@/components/console/CallsSection";
 import type { RunSummary } from "@/lib/runs/types";
 
+const navigation = vi.hoisted(() => ({ search: "" }));
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => new URLSearchParams(navigation.search),
 }));
 vi.mock("@/components/console/AuthContext", () => ({
   useAuth: () => ({
@@ -15,11 +17,13 @@ vi.mock("@/components/console/AuthContext", () => ({
   }),
 }));
 vi.mock("@/components/console/CallDetailDrawer", () => ({
-  default: () => null,
+  default: ({ row }: { row: { costDisplay: string } | null }) =>
+    row ? <div data-testid="detail-cost">{row.costDisplay}</div> : null,
 }));
 const records: RunSummary[] = [];
 const fetcher = vi.fn();
 beforeEach(() => {
+  navigation.search = "";
   records.length = 0;
   fetcher.mockReset();
   fetcher.mockImplementation(async (input: string) => {
@@ -85,16 +89,103 @@ it("shows Postgres rows even when billing is unavailable", async () => {
     completedAt: "2026-09-01T12:00:01Z",
     email: null,
   });
-  fetcher.mockImplementation(async (input: string) =>
-    input.startsWith("/api/console/runs")
+  navigation.search = "request=saved-run";
+  fetcher.mockImplementation(async (input: string) => {
+    if (input === "/api/console/runs/saved-run") {
+      return Response.json({
+        ...records[0],
+        submittedArguments: null,
+        result: null,
+        captureRedactedPaths: [],
+        assets: [],
+        events: [
+          {
+            id: "billing-event",
+            eventKey: "usage:receipt",
+            status: "succeeded",
+            createdAt: "2026-09-01T12:00:02Z",
+            metadata: { kind: "billing_usage", networkFeeUsdMicros: "2500" },
+          },
+        ],
+      });
+    }
+    return input.startsWith("/api/console/runs")
       ? Response.json({ items: records, nextCursor: null })
-      : Response.json({ error: "billing unavailable" }, { status: 503 })
-  );
+      : Response.json({ error: "billing unavailable" }, { status: 503 });
+  });
   render(<CallsSection query="" onQueryChange={vi.fn()} />);
   await screen.findByRole("button", { name: "Inspect saved-run" });
   expect(screen.queryByText("No history yet.")).toBeNull();
   expect(screen.queryByRole("alert")).toBeNull();
   expect(screen.queryByText("Usage-only history")).toBeNull();
+  await waitFor(() =>
+    expect(screen.getByTestId("detail-cost").textContent).toBe("$0.0025")
+  );
+});
+
+it("joins a correlated ticket fee onto the saved run, without adding a billing row", async () => {
+  records.push({
+    id: "saved-run",
+    principalId: "external",
+    userId: "user",
+    externalAccountId: "account",
+    gatewayRequestId: "job_saved",
+    providerRequestId: null,
+    provider: null,
+    source: "mcp",
+    capability: "text-generation",
+    modelId: "saved-model",
+    endpoint: null,
+    status: "succeeded",
+    captureVersion: 1,
+    errorCode: null,
+    errorMessage: null,
+    version: 2,
+    createdAt: "2026-09-01T12:00:00Z",
+    updatedAt: "2026-09-01T12:00:01Z",
+    startedAt: "2026-09-01T12:00:00Z",
+    completedAt: "2026-09-01T12:00:01Z",
+    email: null,
+  });
+  fetcher.mockImplementation(async (input: string) => {
+    if (input.startsWith("/api/console/runs"))
+      return Response.json({ items: records, nextCursor: null });
+    return Response.json({
+      items: [
+        {
+          eventId: "evt-saved",
+          gatewayRequestId: "job_saved",
+          time: "2026-09-01T12:00:00Z",
+          clientId: "app_test",
+          externalUserId: "eu_test",
+          pipeline: "text-generation",
+          modelId: "saved-model",
+          networkFeeUsdMicros: "1000",
+        },
+        {
+          eventId: "legacy-event",
+          gatewayRequestId: "legacy-job",
+          time: "2025-01-01T00:00:00Z",
+          clientId: "app_test",
+          externalUserId: "eu_test",
+          pipeline: "text-generation",
+          modelId: "legacy-only-model",
+          networkFeeUsdMicros: "100",
+        },
+      ],
+      nextCursor: null,
+      openMeterConfigured: true,
+    });
+  });
+  render(<CallsSection query="" onQueryChange={vi.fn()} />);
+  await screen.findByRole("button", { name: "Inspect saved-run" });
+  expect(screen.getByText("$0.0010")).toBeTruthy();
+  expect(
+    fetcher.mock.calls.some(([url]) =>
+      String(url).includes("includeCorrelated=1")
+    )
+  ).toBe(true);
+  expect(screen.queryByText("legacy-only-model")).toBeNull();
 });
 
 it("searches the same Postgres history rather than a separate loaded billing list", async () => {
