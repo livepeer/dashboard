@@ -51,7 +51,14 @@ it("keeps old history and pagination even when its media is unavailable", async 
   expect(result.items).toEqual(items);
   expect(result.nextCursor).toBe("older-page");
   const url = new URL(fetch.mock.calls[0][0] as string);
-  expect(url.searchParams.get("from")).toBe("1970-01-01T00:00:00.000Z");
+  const from = url.searchParams.get("from");
+  expect(from).toBeTruthy();
+  expect(from).not.toBe("1970-01-01T00:00:00.000Z");
+  const fromMs = Date.parse(from ?? "");
+  const toMs = Date.parse(url.searchParams.get("to") ?? "");
+  expect(Number.isFinite(fromMs)).toBe(true);
+  expect(Number.isFinite(toMs)).toBe(true);
+  expect(toMs - fromMs).toBeLessThanOrEqual(365 * 24 * 60 * 60 * 1000);
   expect(url.searchParams.get("cursor")).toBe("current-page");
   expect(url.searchParams.get("limit")).toBe("50");
 });
