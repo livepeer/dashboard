@@ -179,6 +179,7 @@ export default function RunsPreview() {
         </section>
       </div>
       <CallDetailDrawer
+        variant="admin"
         row={selectedRow}
         rows={rows}
         open={!!selected}

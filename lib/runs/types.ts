@@ -32,9 +32,30 @@ export type RunAssetInput = {
 };
 export type RunAsset = RunAssetInput & {
   id: string;
+  /** User-facing filename/title when known; history falls back to the asset id. */
+  displayName?: string | null;
   createdAt: string;
   unavailableAt: string | null;
   hiddenAt: string | null;
+};
+export type RunInputFieldSchema = {
+  /** Dot path into submitted inputs. Array items use `*`, for example `keyframes.*.image_url`. */
+  path: string;
+  title: string | null;
+  description: string | null;
+  required: boolean;
+  types: string[];
+  options: Array<string | number | boolean | null>;
+  defaultValue?: JsonValue;
+  minimum?: number;
+  maximum?: number;
+  exclusiveMinimum?: number;
+  exclusiveMaximum?: number;
+};
+export type RunInputSchema = {
+  endpointId: string;
+  schemaSha256: string;
+  fields: RunInputFieldSchema[];
 };
 export type RunRecord = RunOwner & {
   id: string;
@@ -60,6 +81,8 @@ export type RunRecord = RunOwner & {
   email: string | null;
 };
 export type RunDetail = RunRecord & {
+  /** Current provider metadata used to explain submitted inputs in user history. */
+  inputSchema?: RunInputSchema | null;
   assets: RunAsset[];
   events: {
     id: string;

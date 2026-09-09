@@ -145,7 +145,7 @@ it("preserves personal History navigation without an admin inspector", () => {
   expect(screen.queryByRole("button")).toBeNull();
 });
 
-it("loads persisted platform history and inspects submitted/returned JSON in the shared drawer", async () => {
+it("loads persisted platform history and presents captured fields without raw JSON", async () => {
   render(
     <AdminWorkspace>
       <div>Existing waitlist</div>
@@ -164,12 +164,15 @@ it("loads persisted platform history and inspects submitted/returned JSON in the
   );
   fireEvent.click(screen.getByRole("button", { name: "Inspect run-alex" }));
   const inspector = screen.getByRole("dialog");
-  await within(inspector).findByText("Submitted JSON");
+  await within(inspector).findByText("Submitted prompts");
   await waitFor(() =>
     expect(inspector.textContent).toContain("Durable lighthouse prompt")
   );
   expect(inspector.textContent).toContain("Captured text output");
-  expect(within(inspector).getByText("Returned JSON")).toBeTruthy();
+  expect(within(inspector).getByText("Request parameters")).toBeTruthy();
+  expect(within(inspector).getByText("Response")).toBeTruthy();
+  expect(within(inspector).queryByText("Submitted JSON")).toBeNull();
+  expect(within(inspector).queryByText("Returned JSON")).toBeNull();
   expect(
     fetcher.mock.calls.some(([url]) => url === "/api/admin/runs/run-alex")
   ).toBe(true);

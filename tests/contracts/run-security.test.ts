@@ -129,6 +129,10 @@ describe("run capture privacy contract", () => {
       ],
       image: { url: "https://v3.fal.media/files/a.png" },
       video: { url: "https://v3.fal.media/files/c.mp4" },
+      video_urls: [
+        "https://v3.fal.media/files/d.mp4",
+        "https://v3.fal.media/files/e.mp4",
+      ],
       status_url: "https://queue.fal.run/fal-ai/flux/requests/request-1/status",
       prompt: "https://example.invalid/not-an-output.png",
     });
@@ -136,6 +140,8 @@ describe("run capture privacy contract", () => {
       "https://v3.fal.media/files/a.png",
       "https://v3.fal.media/files/c.mp4",
       "https://v3.fal.media/files/b.png",
+      "https://v3.fal.media/files/d.mp4",
+      "https://v3.fal.media/files/e.mp4",
     ]);
     expect(
       extractRunOutputs({

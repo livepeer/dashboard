@@ -40,9 +40,22 @@ export function humanizePipelineModel(
   const raw = segment.includes(":")
     ? segment.split(":").slice(-1)[0]!
     : segment;
-  return raw
-    .split(/[-_./|:]+/)
-    .filter(Boolean)
+  const parts = raw.split(/[-_./|:]+/).filter(Boolean);
+
+  // Catalog and provider namespaces are useful in canonical capability IDs,
+  // but add no meaning to the model name shown to people.
+  if (
+    parts[0]?.toLowerCase() === "livepeer" &&
+    parts[1]?.toLowerCase() === "example"
+  ) {
+    parts.splice(0, 2);
+  }
+  if (parts[0]?.toLowerCase() === "fal") {
+    parts.shift();
+    if (parts[0]?.toLowerCase() === "ai") parts.shift();
+  }
+
+  return parts
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
 }

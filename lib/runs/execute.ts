@@ -14,6 +14,11 @@ import {
   validatePublicFalQueue,
 } from "./reconcile";
 import type { JsonValue, RunDetail, RunTransition } from "./types";
+import {
+  publicAsset,
+  removeAssetUrls,
+  replaceAssetUrls,
+} from "@/lib/assets/public";
 
 export type RunArguments = {
   capability: string;
@@ -235,24 +240,40 @@ export async function executeDurableRun(
           }
         : {}),
     });
+    const persistedAssets = saved?.assets ?? [];
+    const assets = persistedAssets.map(publicAsset);
+    const capturedData = resultEnvelope(result.data).value;
+    const publicData = persistedAssets.length
+      ? replaceAssetUrls(capturedData, persistedAssets)
+      : removeAssetUrls(
+          capturedData,
+          outputs.map((output) => output.url)
+        );
     const urlRaw =
       result.url ?? result.imageUrl ?? result.videoUrl ?? result.audioUrl;
-    const url = urlRaw && !isQueueControlUrl(urlRaw) ? urlRaw : null;
+    const sourceAsset =
+      urlRaw && !isQueueControlUrl(urlRaw)
+        ? persistedAssets.find((asset) => asset.url === urlRaw)
+        : undefined;
+    const url = sourceAsset ? publicAsset(sourceAsset).url : null;
     return {
       payload: {
         capability: args.capability,
         url,
+        assets: assets.map(({ id, url, mediaType }) => ({
+          id,
+          url,
+          media_type: mediaType ?? null,
+        })),
         status: result.status,
         request_id: result.providerRequestId,
-        status_url: result.statusUrl,
-        response_url: result.responseUrl,
         orchestrator: result.orchestrator,
         elapsed_ms: result.elapsedMs,
         billable_units: result.billableUnits,
         gateway_request_id: result.gatewayRequestId || gatewayRequestId,
         run_id: run.id,
         ...(!saved ? { persist_error: "run_store_unavailable" } : {}),
-        ...(url ? {} : { data: result.data }),
+        ...(url ? {} : { data: publicData }),
       },
       isError: status === "failed" || status === "cancelled",
     };
