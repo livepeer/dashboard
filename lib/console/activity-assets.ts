@@ -2,6 +2,7 @@ import "server-only";
 
 import type { SignedTicketRequestRow } from "@/lib/console/account-usage";
 import { listAssetsForGatewayRequestIds } from "@/lib/mcp/store";
+import { publicAssetUrl } from "@/lib/assets/public";
 
 /**
  * Exact owner + gateway correlation only. Never infer a run's output from
@@ -25,7 +26,7 @@ export async function attachOutputsToTickets(
     return asset
       ? {
           ...item,
-          outputUrl: asset.url,
+          outputUrl: publicAssetUrl(asset.id),
           providerRequestId: asset.providerRequestId,
         }
       : item;

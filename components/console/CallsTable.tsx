@@ -5,7 +5,12 @@ import type { ReactNode } from "react";
 import { formatCallMetric, formatRunRelativeTime } from "@/lib/console/utils";
 import EnvTag from "@/components/console/EnvTag";
 import StatusDot from "@/components/console/StatusDot";
-import Tooltip from "@/components/design-system/Tooltip";
+import ModalityChip from "@/components/console/ModalityChip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useTickWhileActive } from "@/components/console/useTickWhileActive";
 import type { AccountActivityRow } from "@/lib/console/types";
 import { STATUS_LABEL } from "@/lib/console/activity-media";
@@ -93,13 +98,11 @@ function HistoryCost({
   }
   return (
     <span className="justify-self-end">
-      <Tooltip
-        content={
+      <Tooltip>
+        <TooltipTrigger asChild>{amount}</TooltipTrigger>
+        <TooltipContent side="left">
           <span className="font-mono tabular-nums">{row.costExact}</span>
-        }
-        side="left"
-      >
-        {amount}
+        </TooltipContent>
       </Tooltip>
     </span>
   );
@@ -217,13 +220,9 @@ export default function CallsTable({
               <span className="min-w-0 truncate font-medium text-fg-strong">
                 {row.model}
               </span>
-              <span
-                className={`inline-flex h-[18px] shrink-0 items-center rounded-[3px] px-1.5 font-mono text-[10.5px] text-fg-faint ${
-                  compact ? "bg-foreground/3" : "border border-hairline"
-                }`}
-              >
+              <ModalityChip appearance={compact ? "filled" : "outlined"}>
                 {pipelineLabel}
-              </span>
+              </ModalityChip>
               {showEnvironment && <EnvTag environmentId={row.environmentId} />}
               {row.recordKind && (
                 <span className="shrink-0 text-[11.5px] font-normal text-fg-faint">

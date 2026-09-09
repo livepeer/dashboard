@@ -3,12 +3,48 @@ import { test } from "node:test";
 
 import { FAL_CAPABILITY_CATALOG } from "../mcp/fal-capability-catalog";
 import { mapSignedTicketToActivityRow } from "./signed-ticket-activity";
+import { humanizePipelineModel } from "./usage-capability-display";
 import {
+  capabilityPresentation,
   outputKindForModality,
   pipelineForModality,
   resolveActivityCapability,
   resolveCapabilityModality,
 } from "./capability-modality";
+
+test("capability presentation pulls modality out of titles", () => {
+  assert.deepEqual(capabilityPresentation("Kling Image to Video", "i2v"), {
+    title: "Kling",
+    modality: "Image to video",
+  });
+  assert.deepEqual(capabilityPresentation("Flux Schnell", "t2i"), {
+    title: "Flux Schnell",
+    modality: "Text to image",
+  });
+  assert.deepEqual(capabilityPresentation("Custom i2v", "i2v"), {
+    title: "Custom",
+    modality: "Image to video",
+  });
+  assert.deepEqual(capabilityPresentation("Kling image-to-video Pro", "i2v"), {
+    title: "Kling Pro",
+    modality: "Image to video",
+  });
+});
+
+test("model display names omit catalog and provider namespaces", () => {
+  assert.equal(
+    humanizePipelineModel("fixed", "livepeer-example/fal-whisper-transcribe"),
+    "Whisper Transcribe"
+  );
+  assert.equal(
+    humanizePipelineModel("fixed", "fal-ai/kling-video-v2.1-master"),
+    "Kling Video V2 1 Master"
+  );
+  assert.equal(
+    humanizePipelineModel("text-to-image", "flux-schnell"),
+    "Flux Schnell"
+  );
+});
 
 test("first-party pipeline names map to modality tags", () => {
   assert.equal(resolveCapabilityModality({ pipeline: "text-to-image" }), "t2i");

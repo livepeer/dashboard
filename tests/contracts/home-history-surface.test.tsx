@@ -2,6 +2,7 @@
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import CallsSection from "@/components/console/CallsSection";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import type { RunSummary } from "@/lib/runs/types";
 
 const navigation = vi.hoisted(() => ({ search: "" }));
@@ -22,6 +23,13 @@ vi.mock("@/components/console/CallDetailDrawer", () => ({
 }));
 const records: RunSummary[] = [];
 const fetcher = vi.fn();
+function renderCallsSection(query = "") {
+  return render(
+    <TooltipProvider>
+      <CallsSection query={query} onQueryChange={vi.fn()} />
+    </TooltipProvider>
+  );
+}
 beforeEach(() => {
   navigation.search = "";
   records.length = 0;
@@ -53,7 +61,7 @@ afterEach(() => {
 });
 
 it("renders exactly one History and one empty state, without the billing feed", async () => {
-  render(<CallsSection query="" onQueryChange={vi.fn()} />);
+  renderCallsSection();
   await screen.findByText("No history yet.");
   expect(screen.getAllByRole("heading", { name: "History" })).toHaveLength(1);
   expect(
@@ -113,7 +121,7 @@ it("shows Postgres rows even when billing is unavailable", async () => {
       ? Response.json({ items: records, nextCursor: null })
       : Response.json({ error: "billing unavailable" }, { status: 503 });
   });
-  render(<CallsSection query="" onQueryChange={vi.fn()} />);
+  renderCallsSection();
   await screen.findByRole("button", { name: "Inspect saved-run" });
   expect(screen.queryByText("No history yet.")).toBeNull();
   expect(screen.queryByRole("alert")).toBeNull();
@@ -177,7 +185,7 @@ it("joins a correlated ticket fee onto the saved run, without adding a billing r
       openMeterConfigured: true,
     });
   });
-  render(<CallsSection query="" onQueryChange={vi.fn()} />);
+  renderCallsSection();
   await screen.findByRole("button", { name: "Inspect saved-run" });
   expect(screen.getByText("$0.0010")).toBeTruthy();
   expect(
@@ -189,7 +197,7 @@ it("joins a correlated ticket fee onto the saved run, without adding a billing r
 });
 
 it("searches the same Postgres history rather than a separate loaded billing list", async () => {
-  render(<CallsSection query="flux" onQueryChange={vi.fn()} />);
+  renderCallsSection("flux");
   await screen.findByText("No history matches this search.");
   await waitFor(() =>
     expect(fetcher).toHaveBeenCalledWith(

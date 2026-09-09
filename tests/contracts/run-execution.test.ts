@@ -142,6 +142,58 @@ describe("durable MCP execution", () => {
     );
     expect(reply.payload.billable_units).toBe(2.5);
   });
+  it("returns asset ids and first-party URLs without leaking provider media URLs", async () => {
+    const deps = fixture();
+    const providerUrl = "https://v3b.fal.media/files/output.mp4";
+    vi.mocked(deps.infer).mockResolvedValue({
+      gatewayRequestId: "job_test",
+      data: { video_urls: [providerUrl] },
+      status: "COMPLETED",
+      videoUrl: providerUrl,
+    } as never);
+    vi.mocked(deps.store.transitionRun).mockImplementation(
+      async (_owner, _id, transition) =>
+        ({
+          ...owner,
+          id: "run_test",
+          assets:
+            transition.eventKey === "dispatch-returned"
+              ? [
+                  {
+                    id: "asset_123",
+                    url: providerUrl,
+                    mediaType: "video",
+                    providerRequestId: null,
+                    availableUntil: null,
+                    expiresAt: null,
+                    unavailableAt: null,
+                    hiddenAt: null,
+                    createdAt: "2026-09-09T12:00:00.000Z",
+                  },
+                ]
+              : [],
+        }) as RunDetail
+    );
+
+    const response = await executeDurableRun(
+      principal,
+      { capability: "video" },
+      deps
+    );
+    expect(response.payload.url).toBe(
+      "https://earlyaccess.livepeer.org/api/assets/asset_123"
+    );
+    expect(response.payload.assets).toEqual([
+      {
+        id: "asset_123",
+        url: "https://earlyaccess.livepeer.org/api/assets/asset_123",
+        media_type: "video",
+      },
+    ]);
+    expect(JSON.stringify(response.payload)).not.toContain("fal.media");
+    expect(response.payload).not.toHaveProperty("status_url");
+    expect(response.payload).not.toHaveProperty("response_url");
+  });
   it("persists interrupted execution as unknown, not failed", async () => {
     const deps = fixture();
     vi.mocked(deps.infer).mockRejectedValue(new Error("timeout"));

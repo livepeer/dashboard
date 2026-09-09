@@ -138,6 +138,57 @@ const AUDIO_MODALITIES = new Set(["audio", "t2m", "tts", "v2m"]);
 
 const TEXT_MODALITIES = new Set(["asr", "text"]);
 
+const MODALITY_LABELS: Record<string, string> = {
+  a2v: "Audio to video",
+  asr: "Speech to text",
+  audio: "Text to audio",
+  "bg-remove": "Background removal",
+  edit: "Image editing",
+  erase: "Image erasing",
+  extend: "Video extension",
+  fill: "Image fill",
+  i2v: "Image to video",
+  i3d: "Image to 3D",
+  inpaint: "Image inpainting",
+  realtime: "Realtime video",
+  ref2v: "Reference to video",
+  t2i: "Text to image",
+  t2m: "Text to music",
+  t2v: "Text to video",
+  text: "Text generation",
+  transition: "Frame transition",
+  tts: "Text to speech",
+  upscale: "Image upscaling",
+  v2m: "Video to music",
+  v2v: "Video to video",
+};
+
+export function capabilityPresentation(
+  title: string,
+  modality: string
+): { title: string; modality: string } {
+  const label = MODALITY_LABELS[modality] ?? modality;
+  if (!label || modality === "unknown") return { title, modality: label };
+  const phrase = label
+    .split(/\s+/)
+    .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+    .join("[\\s_/-]+");
+  const shorthand = modality.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const withoutPhrase = title.replace(
+    new RegExp(`(?:\\s*[·|—:/-]\\s*)?\\b${phrase}\\b`, "gi"),
+    " "
+  );
+  const withoutShorthand = withoutPhrase.replace(
+    new RegExp(`(?:\\s*[·|—:/-]\\s*)?\\b${shorthand}\\b`, "gi"),
+    " "
+  );
+  const cleanTitle = withoutShorthand
+    .replace(/\s+/g, " ")
+    .replace(/[·|—:/-]+\s*$/, "")
+    .trim();
+  return { title: cleanTitle || title, modality: label };
+}
+
 export type CapabilityMediaKind = "image" | "video" | "audio" | "text" | "json";
 
 function normalize(value: string | null | undefined): string {
@@ -247,9 +298,7 @@ export function resolveActivityCapability(input: {
   if (resolved) {
     const inferred = pipelineForModality(resolved);
     const pipeline =
-      stored && !isPriceUnit(normalizedStored)
-        ? stored
-        : (inferred ?? stored);
+      stored && !isPriceUnit(normalizedStored) ? stored : (inferred ?? stored);
     return { modality: resolved, pipeline: pipeline || "unknown" };
   }
 
@@ -262,7 +311,6 @@ export function resolveActivityCapability(input: {
 
   return {
     modality: "unknown",
-    pipeline:
-      stored && !isPriceUnit(normalizedStored) ? stored : "unknown",
+    pipeline: stored && !isPriceUnit(normalizedStored) ? stored : "unknown",
   };
 }

@@ -56,8 +56,11 @@ export function extractRunOutputs(result: unknown): CapturedOutput[] {
     add(row.url, "unknown");
     for (const [key, kind] of [
       ["images", "image"],
+      ["image_urls", "image"],
       ["videos", "video"],
+      ["video_urls", "video"],
       ["audios", "audio"],
+      ["audio_urls", "audio"],
     ] as const) {
       if (Array.isArray(row[key])) for (const item of row[key]) add(item, kind);
     }

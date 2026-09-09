@@ -16,10 +16,516 @@ import type {
   AccountUsagePayload,
   AccountUsagePipelineRow,
 } from "@/lib/console/account-usage";
+import type {
+  JsonValue,
+  RunDetail,
+  RunInputSchema,
+  RunSummary,
+} from "@/lib/runs/types";
 
 const PERIOD_DAYS = 30;
 const MOCK_SUB = "google-oauth2|108451209377712345678";
 const MOCK_EMAIL = "design@livepeer.org";
+const MOCK_USER_ID = "00000000-0000-4000-8000-000000000001";
+const MOCK_OWNER = {
+  principalId: "eu_devmock",
+  userId: MOCK_USER_ID,
+  externalAccountId: "account_devmock",
+};
+
+const MOCK_ASSET_PATHS: Record<string, string> = {
+  asset_dev_video: "/media-2026-08-08-150247/crab-beach.mp4",
+  asset_user_upload_forest_reference:
+    "/livepeer-ui-2026-08-08/network/network-8.webp",
+  asset_platform_forest_mask: "/images/console/explore/depth-anything-v2.webp",
+  asset_dev_image: "/images/console/explore/flux-schnell.webp",
+  asset_dev_keyframes_video: "/media-2026-08-08-141651/capabilities.mp4",
+  asset_platform_station_first:
+    "/livepeer-ui-2026-08-08/network/network-3.webp",
+  asset_platform_station_middle:
+    "/livepeer-ui-2026-08-08/network/network-5.webp",
+  asset_platform_station_last:
+    "/livepeer-ui-2026-08-08/network/network-11.webp",
+  asset_user_upload_product_walkthrough: "/media-2026-08-08-141651/crab.mp4",
+};
+
+function mockRunSummaries(): RunSummary[] {
+  const now = Date.now();
+  return [
+    {
+      ...MOCK_OWNER,
+      id: "run_dev_video",
+      gatewayRequestId: "job_dev_video",
+      providerRequestId: "fal_dev_video",
+      provider: "fal",
+      source: "mcp",
+      capability: "fal-ai/kling-video/v2.1/master/image-to-video",
+      modelId: "fal-ai/kling-video/v2.1/master/image-to-video",
+      endpoint: null,
+      status: "succeeded",
+      captureVersion: 1,
+      errorCode: null,
+      errorMessage: null,
+      version: 2,
+      createdAt: new Date(now - 4 * 60_000).toISOString(),
+      updatedAt: new Date(now - 3 * 60_000).toISOString(),
+      startedAt: new Date(now - 4 * 60_000).toISOString(),
+      completedAt: new Date(now - 3 * 60_000).toISOString(),
+      email: MOCK_EMAIL,
+    },
+    {
+      ...MOCK_OWNER,
+      id: "run_dev_image",
+      gatewayRequestId: "job_dev_image",
+      providerRequestId: "fal_dev_image",
+      provider: "fal",
+      source: "mcp",
+      capability: "fal-ai/flux/schnell",
+      modelId: "fal-ai/flux/schnell",
+      endpoint: null,
+      status: "succeeded",
+      captureVersion: 1,
+      errorCode: null,
+      errorMessage: null,
+      version: 2,
+      createdAt: new Date(now - 18 * 60_000).toISOString(),
+      updatedAt: new Date(now - 18 * 60_000 + 1_840).toISOString(),
+      startedAt: new Date(now - 18 * 60_000).toISOString(),
+      completedAt: new Date(now - 18 * 60_000 + 1_840).toISOString(),
+      email: MOCK_EMAIL,
+    },
+    {
+      ...MOCK_OWNER,
+      id: "run_dev_keyframes",
+      gatewayRequestId: "job_dev_keyframes",
+      providerRequestId: "fal_dev_keyframes",
+      provider: "fal",
+      source: "mcp",
+      capability: "livepeer-example/fal-flux-3-keyframes",
+      modelId: "livepeer-example/fal-flux-3-keyframes",
+      endpoint: null,
+      status: "succeeded",
+      captureVersion: 1,
+      errorCode: null,
+      errorMessage: null,
+      version: 2,
+      createdAt: new Date(now - 32 * 60_000).toISOString(),
+      updatedAt: new Date(now - 31 * 60_000).toISOString(),
+      startedAt: new Date(now - 32 * 60_000).toISOString(),
+      completedAt: new Date(now - 31 * 60_000).toISOString(),
+      email: MOCK_EMAIL,
+    },
+    {
+      ...MOCK_OWNER,
+      id: "run_dev_transcript",
+      gatewayRequestId: "job_dev_transcript",
+      providerRequestId: "fal_dev_transcript",
+      provider: "fal",
+      source: "mcp",
+      capability: "livepeer-example/fal-whisper-transcribe",
+      modelId: "livepeer-example/fal-whisper-transcribe",
+      endpoint: null,
+      status: "succeeded",
+      captureVersion: 1,
+      errorCode: null,
+      errorMessage: null,
+      version: 2,
+      createdAt: new Date(now - 46 * 60_000).toISOString(),
+      updatedAt: new Date(now - 46 * 60_000 + 7_260).toISOString(),
+      startedAt: new Date(now - 46 * 60_000).toISOString(),
+      completedAt: new Date(now - 46 * 60_000 + 7_260).toISOString(),
+      email: MOCK_EMAIL,
+    },
+    {
+      ...MOCK_OWNER,
+      id: "run_dev_metadata",
+      gatewayRequestId: "job_dev_metadata",
+      providerRequestId: "fal_dev_metadata",
+      provider: "fal",
+      source: "mcp",
+      capability: "livepeer-example/fal-ffmpeg-metadata",
+      modelId: "livepeer-example/fal-ffmpeg-metadata",
+      endpoint: null,
+      status: "succeeded",
+      captureVersion: 1,
+      errorCode: null,
+      errorMessage: null,
+      version: 2,
+      createdAt: new Date(now - 63 * 60_000).toISOString(),
+      updatedAt: new Date(now - 63 * 60_000 + 940).toISOString(),
+      startedAt: new Date(now - 63 * 60_000).toISOString(),
+      completedAt: new Date(now - 63 * 60_000 + 940).toISOString(),
+      email: MOCK_EMAIL,
+    },
+    {
+      ...MOCK_OWNER,
+      id: "run_dev_3d",
+      gatewayRequestId: "job_dev_3d",
+      providerRequestId: "fal_dev_3d",
+      provider: "fal",
+      source: "mcp",
+      capability: "livepeer-example/fal-tripo-h31-t3d",
+      modelId: "livepeer-example/fal-tripo-h31-t3d",
+      endpoint: null,
+      status: "succeeded",
+      captureVersion: 1,
+      errorCode: null,
+      errorMessage: null,
+      version: 2,
+      createdAt: new Date(now - 78 * 60_000).toISOString(),
+      updatedAt: new Date(now - 77 * 60_000).toISOString(),
+      startedAt: new Date(now - 78 * 60_000).toISOString(),
+      completedAt: new Date(now - 77 * 60_000).toISOString(),
+      email: MOCK_EMAIL,
+    },
+    {
+      ...MOCK_OWNER,
+      id: "run_dev_failed",
+      gatewayRequestId: "job_dev_failed",
+      providerRequestId: null,
+      provider: "fal",
+      source: "mcp",
+      capability: "fal-ai/minimax/video-01",
+      modelId: "fal-ai/minimax/video-01",
+      endpoint: null,
+      status: "failed",
+      captureVersion: 1,
+      errorCode: "inference_failed",
+      errorMessage: "The preview provider rejected this sample request.",
+      version: 2,
+      createdAt: new Date(now - 96 * 60_000).toISOString(),
+      updatedAt: new Date(now - 95 * 60_000).toISOString(),
+      startedAt: new Date(now - 96 * 60_000).toISOString(),
+      completedAt: new Date(now - 95 * 60_000).toISOString(),
+      email: MOCK_EMAIL,
+    },
+  ];
+}
+
+function mockRunDetail(run: RunSummary): RunDetail {
+  const video = run.id === "run_dev_video";
+  const image = run.id === "run_dev_image";
+  const assetUrl = (id: string) =>
+    `https://earlyaccess.livepeer.org/api/assets/${id}`;
+
+  let inputs: Record<string, JsonValue>;
+  let resultValue: JsonValue;
+  let assets: RunDetail["assets"] = [];
+  let feeUsdMicros = "4200";
+
+  if (video) {
+    const outputId = "asset_dev_video";
+    const referenceId = "asset_user_upload_forest_reference";
+    const maskId = "asset_platform_forest_mask";
+    inputs = {
+      prompt:
+        "Create a cinematic tracking shot that begins low among wet ferns in a dense bioluminescent forest at blue hour. The camera should move forward at a deliberate walking pace, then rise gently as translucent plants illuminate in sequence along the path. Keep the atmosphere humid and dimensional, with soft particulate drifting through narrow shafts of moonlight. Introduce a solitary figure only as a distant silhouette for scale; they should never become the focal point. Preserve natural parallax between the foreground leaves, tree trunks, and hazy background, and finish on a wide reveal of a quiet luminous valley. The motion should feel physically grounded, continuous, and suitable for a premium science-fiction nature documentary.",
+      negative_prompt:
+        "visible text, subtitles, logos, watermarks, abrupt camera shake, fast cuts, warped anatomy, duplicated plants, oversaturated neon colors, crushed shadows, flicker, temporal smearing, or a synthetic game-engine appearance",
+      image_url: assetUrl(referenceId),
+      mask_url: assetUrl(maskId),
+      duration: "5",
+      aspect_ratio: "16:9",
+      generate_audio: false,
+    };
+    resultValue = {
+      video: { url: assetUrl(outputId), content_type: "video/mp4" },
+      inference_time_ms: 58_240,
+    };
+    assets = [
+      mockAsset(run, outputId, "video", "Bioluminescent valley.mp4"),
+      mockAsset(run, referenceId, "image", "Forest reference.webp"),
+      mockAsset(run, maskId, "image", "Forest subject mask.webp"),
+    ];
+    feeUsdMicros = "84200";
+  } else if (image) {
+    const outputId = "asset_dev_image";
+    inputs = {
+      prompt: "A red lighthouse above a quiet geometric sea",
+      image_size: "landscape_16_9",
+      num_images: 1,
+      seed: 42,
+    };
+    resultValue = {
+      images: [{ url: assetUrl(outputId), width: 1536, height: 864 }],
+      seed: 42,
+      inference_time_ms: 1_840,
+    };
+    assets = [mockAsset(run, outputId, "image", "Red lighthouse.webp")];
+    feeUsdMicros = "9600";
+  } else if (run.id === "run_dev_keyframes") {
+    const outputId = "asset_dev_keyframes_video";
+    const firstFrameId = "asset_platform_station_first";
+    const middleFrameId = "asset_platform_station_middle";
+    const lastFrameId = "asset_platform_station_last";
+    inputs = {
+      keyframes: [
+        {
+          timestamp_seconds: 0,
+          image_url: assetUrl(firstFrameId),
+          prompt:
+            "Begin on a still, symmetrical wide shot of the empty train platform before sunrise, with cool mist held close to the tracks.",
+        },
+        {
+          timestamp_seconds: 3.5,
+          image_url: assetUrl(middleFrameId),
+          prompt:
+            "A silver train enters from the right while the camera eases backward; preserve the station geometry and introduce warm window light gradually.",
+        },
+        {
+          timestamp_seconds: 7,
+          image_url: assetUrl(lastFrameId),
+          prompt:
+            "Resolve on the departing rear carriage disappearing into fog, leaving the platform unchanged and the camera completely settled.",
+        },
+      ],
+      interpolation: { easing: "ease_in_out", motion_strength: 0.65 },
+      fps: 24,
+      loop: false,
+    };
+    resultValue = {
+      video_url: assetUrl(outputId),
+      frame_count: 168,
+      inference_time_ms: 71_330,
+    };
+    assets = [
+      mockAsset(run, outputId, "video", "Train platform transition.mp4"),
+      mockAsset(run, firstFrameId, "image", "Empty station at dawn.webp"),
+      mockAsset(run, middleFrameId, "image", "Train entering station.webp"),
+      mockAsset(run, lastFrameId, "image", "Train departing into fog.webp"),
+    ];
+    feeUsdMicros = "112600";
+  } else if (run.id === "run_dev_transcript") {
+    const audioId = "asset_user_upload_interview_audio";
+    inputs = {
+      audio_url: assetUrl(audioId),
+      language: null,
+      diarize: true,
+      timestamp_granularity: "word",
+      batch_size: 16,
+    };
+    resultValue = {
+      text: "Welcome back. Today we are looking at how a generated scene changes when motion direction is specified independently from camera movement.",
+      language: "en",
+      speakers: ["SPEAKER_00", "SPEAKER_01"],
+      segments: [
+        { speaker: "SPEAKER_00", start: 0, end: 3.84, text: "Welcome back." },
+        {
+          speaker: "SPEAKER_01",
+          start: 4.12,
+          end: 11.76,
+          text: "Today we are looking at how a generated scene changes when motion direction is specified independently from camera movement.",
+        },
+      ],
+      inference_time_ms: 7_260,
+    };
+    assets = [mockAsset(run, audioId, "audio", "Interview recording.mp3")];
+    feeUsdMicros = "5800";
+  } else if (run.id === "run_dev_metadata") {
+    const sourceId = "asset_user_upload_product_walkthrough";
+    inputs = {
+      video_url: assetUrl(sourceId),
+      include_streams: true,
+      include_format: true,
+    };
+    resultValue = {
+      format: {
+        duration_seconds: 12.48,
+        size_bytes: 18_642_901,
+        bit_rate: 11_950_578,
+        format_names: ["mov", "mp4", "m4a", "3gp", "3g2", "mj2"],
+      },
+      streams: [
+        {
+          index: 0,
+          type: "video",
+          codec: "h264",
+          width: 1920,
+          height: 1080,
+          frame_rate: "24000/1001",
+        },
+        {
+          index: 1,
+          type: "audio",
+          codec: "aac",
+          channels: 2,
+          sample_rate_hz: 48_000,
+        },
+      ],
+      processing_duration_ms: 940,
+    };
+    assets = [mockAsset(run, sourceId, "video", "Product walkthrough.mp4")];
+    feeUsdMicros = "1100";
+  } else if (run.id === "run_dev_3d") {
+    const modelId = "asset_dev_3d_glb";
+    const textureId = "asset_dev_3d_texture";
+    const previewId = "asset_dev_3d_preview";
+    inputs = {
+      prompt:
+        "A museum-ready ceramic fox figurine with a softly faceted silhouette, hand-painted cobalt botanical details, a stable flat base, and clean watertight topology suitable for close product renders.",
+      negative_prompt:
+        "thin unsupported parts, holes, floating geometry, text, logos, asymmetrical eyes, low-resolution textures",
+      topology: "quad",
+      target_face_count: 24_000,
+      generate_texture: true,
+      texture_resolution: "2048",
+    };
+    resultValue = {
+      model: { url: assetUrl(modelId), format: "glb" },
+      textures: [{ url: assetUrl(textureId), channel: "base_color" }],
+      preview_image: { url: assetUrl(previewId) },
+      polygon_count: 23_842,
+      inference_time_ms: 84_910,
+    };
+    assets = [
+      mockAsset(run, modelId, "model/gltf-binary", "Ceramic fox.glb"),
+      mockAsset(run, textureId, "image/png", "Ceramic fox texture.png"),
+      mockAsset(run, previewId, "image/png", "Ceramic fox preview.png"),
+    ];
+    feeUsdMicros = "126400";
+  } else {
+    inputs = {
+      prompt: "A glass sculpture rotating in a dark studio",
+      duration: "5",
+    };
+    resultValue = { error: "content_policy_rejection", retryable: false };
+  }
+
+  return {
+    ...run,
+    inputSchema: mockInputSchema(run),
+    submittedArguments: {
+      capability: run.capability,
+      inputs,
+    },
+    result: { value: resultValue },
+    captureRedactedPaths: [],
+    assets,
+    events: [
+      {
+        id: `${run.id}_created`,
+        eventKey: "created",
+        status: "queued",
+        createdAt: run.createdAt,
+        metadata: {},
+      },
+      {
+        id: `${run.id}_usage`,
+        eventKey: `usage:evt_${run.id}`,
+        status: run.status,
+        createdAt: run.completedAt ?? run.updatedAt,
+        metadata: {
+          kind: "billing_usage",
+          eventId: `evt_${run.id}`,
+          networkFeeUsdMicros: feeUsdMicros,
+        },
+      },
+      {
+        id: `${run.id}_returned`,
+        eventKey: "dispatch-returned",
+        status: run.status,
+        createdAt: run.completedAt ?? run.updatedAt,
+        metadata: { providerStatus: run.status.toUpperCase() },
+      },
+    ],
+  };
+}
+
+function mockInputSchema(run: RunSummary): RunInputSchema | null {
+  if (run.id === "run_dev_image") {
+    return {
+      endpointId: "fal-ai/flux/schnell",
+      schemaSha256: "dev-fixture",
+      fields: [
+        {
+          path: "prompt",
+          title: "Prompt",
+          description: "The prompt to generate an image from.",
+          required: true,
+          types: ["string"],
+          options: [],
+        },
+        {
+          path: "image_size",
+          title: "Image Size",
+          description: "The size of the generated image.",
+          required: false,
+          types: ["object", "string"],
+          options: [
+            "square_hd",
+            "square",
+            "portrait_4_3",
+            "portrait_16_9",
+            "landscape_4_3",
+            "landscape_16_9",
+          ],
+          defaultValue: "landscape_4_3",
+        },
+        {
+          path: "image_size.width",
+          title: "Width",
+          description: "The width of the generated image.",
+          required: false,
+          types: ["integer"],
+          options: [],
+        },
+        {
+          path: "image_size.height",
+          title: "Height",
+          description: "The height of the generated image.",
+          required: false,
+          types: ["integer"],
+          options: [],
+        },
+        {
+          path: "num_images",
+          title: "Num Images",
+          description: "The number of images to generate.",
+          required: false,
+          types: ["integer"],
+          options: [],
+          minimum: 1,
+          maximum: 4,
+          defaultValue: 1,
+        },
+        {
+          path: "seed",
+          title: "Seed",
+          description:
+            "The same seed and prompt produce the same image with this model version.",
+          required: false,
+          types: ["integer", "null"],
+          options: [],
+        },
+      ],
+    };
+  }
+  return null;
+}
+
+function mockAsset(
+  run: RunSummary,
+  id: string,
+  mediaType: string,
+  displayName: string
+): RunDetail["assets"][number] {
+  const createdAt = run.completedAt ?? run.updatedAt;
+  const expiresAt = new Date(
+    Date.parse(createdAt) + 7 * 24 * 60 * 60 * 1000
+  ).toISOString();
+  return {
+    id,
+    displayName,
+    url: `https://earlyaccess.livepeer.org/api/assets/${id}`,
+    mediaType,
+    providerRequestId: run.providerRequestId,
+    availableUntil: null,
+    expiresAt,
+    unavailableAt: null,
+    hiddenAt: null,
+    createdAt,
+  };
+}
 
 /** Deterministic PRNG — charts must not reshuffle on every reload. */
 function seeded(seed: number): () => number {
@@ -484,9 +990,20 @@ export function devMockResponse(
   search: URLSearchParams,
   requestUrl: string
 ): Response | null {
+  if (pathname.startsWith("/api/assets/")) {
+    const id = decodeURIComponent(pathname.slice("/api/assets/".length));
+    const target = MOCK_ASSET_PATHS[id];
+    if (target) {
+      return new Response(null, {
+        status: 307,
+        headers: { location: new URL(target, requestUrl).toString() },
+      });
+    }
+  }
+
   if (pathname === "/api/console/session") {
     return json({
-      userId: "00000000-0000-4000-8000-000000000001",
+      userId: MOCK_USER_ID,
       externalUserId: "eu_devmock",
       name: "Design Preview",
       email: MOCK_EMAIL,
@@ -586,6 +1103,37 @@ export function devMockResponse(
         cancelled: 0,
       },
     });
+  }
+
+  if (pathname === "/api/console/runs") {
+    const query = search.get("search")?.trim().toLowerCase();
+    const items = mockRunSummaries().filter(
+      (run) =>
+        !query ||
+        run.capability.toLowerCase().includes(query) ||
+        run.gatewayRequestId.toLowerCase().includes(query)
+    );
+    return json({
+      items,
+      nextCursor: null,
+      counts: {
+        total: items.length,
+        succeeded: items.filter((run) => run.status === "succeeded").length,
+        failed: items.filter((run) => run.status === "failed").length,
+        queued: 0,
+        running: 0,
+        unknown: 0,
+        cancelled: 0,
+      },
+    });
+  }
+
+  if (pathname.startsWith("/api/console/runs/")) {
+    const id = decodeURIComponent(pathname.slice("/api/console/runs/".length));
+    const run = mockRunSummaries().find((item) => item.id === id);
+    return run
+      ? json(mockRunDetail(run))
+      : json({ error: "run_not_found" }, 404);
   }
 
   if (pathname === "/api/pymthouse/account-usage") {

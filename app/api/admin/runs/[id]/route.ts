@@ -1,6 +1,7 @@
 import { getAdminPrincipal } from "@/lib/admin/auth";
 import { getAdminRun } from "@/lib/runs/store";
 import { runError, RUN_HEADERS } from "@/lib/runs/http";
+import { publicRunDetail } from "@/lib/assets/public";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export async function GET(
@@ -17,7 +18,7 @@ export async function GET(
     const { id } = await context.params;
     const result = await getAdminRun(actor, id);
     if (!result) throw new Error("run_not_found");
-    return Response.json(result, { headers: RUN_HEADERS });
+    return Response.json(publicRunDetail(result), { headers: RUN_HEADERS });
   } catch (error) {
     return runError(error);
   }
