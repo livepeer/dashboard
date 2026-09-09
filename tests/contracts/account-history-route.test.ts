@@ -144,6 +144,31 @@ it("looks up Cost by gateway request id without walking usage pages", async () =
   expect(recordRunUsage).toHaveBeenCalledTimes(1);
 });
 
+it("falls back to paged live usage when by-id misses the first page", async () => {
+  vi.mocked(fetchAccountRequestsForExternalUser)
+    .mockResolvedValueOnce(payload([row("noise")], "next-page"))
+    .mockResolvedValueOnce(payload([row("owned")], null));
+  const response = await GET(
+    new NextRequest(
+      "http://localhost/api/pymthouse/account-requests?includeCorrelated=1&gatewayRequestId=owned"
+    )
+  );
+  expect(response.status).toBe(200);
+  expect((await response.json()).items).toEqual([row("owned")]);
+  expect(fetchAccountRequestsForExternalUser).toHaveBeenNthCalledWith(1, {
+    externalUserId: "eu_fixture",
+    email: "fixture@example.invalid",
+    limit: 50,
+    gatewayRequestIds: ["owned"],
+  });
+  expect(fetchAccountRequestsForExternalUser).toHaveBeenNthCalledWith(2, {
+    externalUserId: "eu_fixture",
+    email: "fixture@example.invalid",
+    cursor: "next-page",
+    limit: 50,
+  });
+});
+
 it("caps an overflowing gatewayRequestId list instead of 400ing Cost", async () => {
   const ids = Array.from({ length: 51 }, (_, i) => `job_${i}`);
   vi.mocked(fetchAccountRequestsForExternalUser).mockResolvedValue(

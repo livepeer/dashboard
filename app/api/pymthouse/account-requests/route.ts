@@ -19,6 +19,7 @@ import {
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+const MAX_LOOKUP_PAGES = 5;
 
 function persistableTicketFees(items: SignedTicketRequestRow[]) {
   return items
@@ -103,12 +104,52 @@ export async function GET(request: NextRequest) {
       )
         throw new AccessError("unavailable");
       const wanted = new Set(gatewayRequestIds);
-      const scoped = payload.items.filter(
-        (item) =>
-          item.externalUserId === session.externalUserId &&
-          item.clientId === appId &&
-          wanted.has(item.gatewayRequestId)
-      );
+      const matchedByGateway = new Map<string, SignedTicketRequestRow>();
+      const collectMatches = (items: SignedTicketRequestRow[]) => {
+        for (const item of items) {
+          if (
+            item.externalUserId !== session.externalUserId ||
+            item.clientId !== appId ||
+            !wanted.has(item.gatewayRequestId) ||
+            matchedByGateway.has(item.gatewayRequestId)
+          )
+            continue;
+          matchedByGateway.set(item.gatewayRequestId, item);
+        }
+      };
+      collectMatches(payload.items);
+
+      let next = payload.nextCursor;
+      for (
+        let page = 0;
+        matchedByGateway.size < wanted.size && next && page < MAX_LOOKUP_PAGES;
+        page++
+      ) {
+        const nextPayload = await fetchAccountRequestsForExternalUser({
+          externalUserId: session.externalUserId,
+          email: session.email,
+          cursor: next,
+          limit,
+        });
+        if (
+          nextPayload.externalUserId !== session.externalUserId ||
+          nextPayload.clientId !== appId
+        )
+          throw new AccessError("unavailable");
+        collectMatches(nextPayload.items);
+        if (nextPayload.nextCursor === next) break;
+        next = nextPayload.nextCursor;
+      }
+
+      const scoped = [...matchedByGateway.values()];
+      if (scoped.length === 0) {
+        console.warn("[account-requests] live Cost lookup returned no matches", {
+          externalUserId: session.externalUserId,
+          appId,
+          probeGatewayRequestId: "job_713a57c61e3d4976",
+          requestedGatewayRequestIds: gatewayRequestIds.slice(0, 10),
+        });
+      }
       await recordRunUsage(owner, persistableTicketFees(scoped));
       return NextResponse.json(
         { ...payload, items: scoped, nextCursor: null },
@@ -118,7 +159,7 @@ export async function GET(request: NextRequest) {
     let next = cursor;
     // Upstream cursors are independent from durable-run cursors. Skip at most
     // five entirely correlated pages per request, preserving actual continuation.
-    for (let page = 0; page < 5; page++) {
+    for (let page = 0; page < MAX_LOOKUP_PAGES; page++) {
       const payload = await fetchAccountRequestsForExternalUser({
         externalUserId: session.externalUserId,
         email: session.email,
@@ -154,7 +195,7 @@ export async function GET(request: NextRequest) {
       if (
         legacy.length ||
         !payload.nextCursor ||
-        page === 4 ||
+        page === MAX_LOOKUP_PAGES - 1 ||
         payload.nextCursor === next
       ) {
         const items = await attachOutputsToTickets(
