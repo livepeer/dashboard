@@ -33,6 +33,7 @@ function fixture() {
       data: { text: "hello" },
       status: null,
       url: null,
+      billableUnits: null,
     }),
   };
   return deps;
@@ -122,7 +123,24 @@ describe("durable MCP execution", () => {
     );
     expect(response.payload.persist_error).toBe("run_store_unavailable");
     expect(response.payload.data).toEqual({ text: "hello" });
+    expect(response.payload.billable_units).toBeNull();
     expect(deps.infer).toHaveBeenCalledTimes(1);
+  });
+  it("forwards billable_units from the gateway result", async () => {
+    const deps = fixture();
+    vi.mocked(deps.infer).mockResolvedValue({
+      gatewayRequestId: "job_test",
+      data: { text: "hello" },
+      status: null,
+      url: null,
+      billableUnits: 2.5,
+    } as never);
+    const reply = await executeDurableRun(
+      principal,
+      { capability: "test" },
+      deps
+    );
+    expect(reply.payload.billable_units).toBe(2.5);
   });
   it("persists interrupted execution as unknown, not failed", async () => {
     const deps = fixture();
