@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-**Stack:** Next.js 15 (App Router), React 19, TypeScript, Tailwind CSS v4, Framer Motion 11, Geist Sans/Mono, Lucide, Recharts, wavesurfer.js. Auth via `@auth0/nextjs-auth0`; billing/usage/keys via `@pymthouse/builder-sdk`. Package manager: **pnpm**.
+**Stack:** Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS v4, Framer Motion 11, Geist Sans/Mono, Lucide, Recharts, wavesurfer.js. Auth via `@auth0/nextjs-auth0`; billing/usage/keys via `@pymthouse/builder-sdk`. Package manager: **pnpm**.
 
 **Tests:** there are ~9 `*.test.ts` files under `lib/console/`, but **no test runner is installed and no `test` script exists** — they cannot currently run. Either wire up a runner or treat those files as documentation; don't assume `pnpm test` works.
 
