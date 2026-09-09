@@ -32,6 +32,7 @@ import type {
 } from "@/lib/runs/types";
 import { requestFeeDisplay } from "@/lib/console/request-fee-display";
 import { capabilityPresentation } from "@/lib/console/capability-modality";
+import { useTickWhileActive } from "@/components/console/useTickWhileActive";
 
 function safeMediaUrl(value: string | undefined): string | undefined {
   try {
@@ -267,16 +268,7 @@ function remainingTime(expiresAt: string, now: number): string | null {
     .join(":");
 }
 
-function MediaExpiry({ expiresAt }: { expiresAt: string }) {
-  const [now, setNow] = useState(() => Date.now());
-
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(timer);
-  }, []);
-
-  const remaining = remainingTime(expiresAt, now);
-  if (!remaining) return null;
+function MediaExpiry({ remaining }: { remaining: string }) {
   return (
     <p className="absolute left-1/2 top-3 w-fit -translate-x-1/2 whitespace-nowrap rounded-md bg-background/90 px-3 py-2 text-center text-xs tabular-nums text-muted-foreground shadow-sm backdrop-blur-sm">
       Expires in {remaining}
@@ -963,7 +955,9 @@ function MediaStage({
   loading: boolean;
 }) {
   const [mediaFailed, setMediaFailed] = useState(false);
-  const expired = expiresAt ? !remainingTime(expiresAt, Date.now()) : false;
+  const now = useTickWhileActive(Boolean(expiresAt));
+  const expiryRemaining = expiresAt ? remainingTime(expiresAt, now) : null;
+  const expired = Boolean(expiresAt && !expiryRemaining);
   const hasRenderableSource =
     (media.kind === "image" && Boolean(media.imageUrl)) ||
     (media.kind === "video" && Boolean(media.videoUrl)) ||
@@ -1008,8 +1002,8 @@ function MediaStage({
       {!loading && canRender && media.kind === "json" && (
         <JsonPreview value={media.json} />
       )}
-      {!loading && canRender && expiresAt && (
-        <MediaExpiry expiresAt={expiresAt} />
+      {!loading && canRender && expiryRemaining && (
+        <MediaExpiry remaining={expiryRemaining} />
       )}
     </div>
   );
