@@ -53,6 +53,7 @@ export async function GET(request: NextRequest) {
         email: session.email,
         cursor: next,
         limit,
+        ...(includeCorrelated ? { recentWindow: true } : {}),
       });
       if (
         payload.externalUserId !== session.externalUserId ||

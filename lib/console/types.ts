@@ -414,6 +414,8 @@ export type AccountActivityStatus =
 export interface AccountActivityRow {
   recordKind?: "run" | "usage";
   gatewayRequestId?: string;
+  /** Raw capability id (`livepeer-example/fal-flux-schnell`). Used to join Cost. */
+  capabilityId?: string;
   id: string;
   /** Environment this request ran under. Scopes Jobs + Home runs by env. */
   environmentId: string;

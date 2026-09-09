@@ -254,6 +254,12 @@ export async function fetchAccountRequestsForExternalUser(input: {
   email?: string;
   cursor?: string | null;
   limit?: number;
+  /**
+   * Cost lookups must not send a 365-day window. OpenMeter lists cap at 100
+   * events, so a year-long range drops the ticket Home is trying to price.
+   * Omitting from/to uses the current UTC month on `/me/usage/requests`.
+   */
+  recentWindow?: boolean;
 }): Promise<AccountRequestsPayload> {
   const publicClientId = readPublicClientId();
   const minted = await mintEndUserAccessToken(
@@ -263,9 +269,11 @@ export async function fetchAccountRequestsForExternalUser(input: {
   const accessToken = minted.access_token;
 
   const url = new URL(`${issuerOriginFromConfig()}/api/v1/user/usage/requests`);
-  const range = historyRange();
-  url.searchParams.set("from", range.from);
-  url.searchParams.set("to", range.to);
+  if (!input.recentWindow) {
+    const range = historyRange();
+    url.searchParams.set("from", range.from);
+    url.searchParams.set("to", range.to);
+  }
   if (input.cursor) url.searchParams.set("cursor", input.cursor);
   if (input.limit != null) url.searchParams.set("limit", String(input.limit));
 

@@ -6,6 +6,7 @@ import SectionHeader from "@/components/console/SectionHeader";
 import CallsTable from "@/components/console/CallsTable";
 import CallDetailDrawer from "@/components/console/CallDetailDrawer";
 import { useAuth } from "@/components/console/AuthContext";
+import { matchRunTicketFees } from "@/lib/console/activity-output-match";
 import { useAccountRequests } from "@/lib/console/useAccountRequests";
 import { useRunDetail, useRunHistory } from "@/lib/console/useRunHistory";
 import { runToActivity } from "@/lib/console/run-activity";
@@ -28,23 +29,50 @@ export default function CallsSection({
     },
     ownerKey
   );
+  const requestId = useSearchParams().get("request");
+  const detail = useRunDetail(
+    "/api/console/runs",
+    requestId,
+    ownerKey,
+    isConnected
+  );
   // Correlate billing receipts with saved runs; billing is not a second history feed.
   const billing = useAccountRequests(isConnected, ownerKey, true);
   const billingRows = billing.status === "ready" ? billing.rows : null;
   const feeByGateway = useMemo(() => {
-    const fees = new Map<string, { costDisplay: string; costExact?: string }>();
-    if (!billingRows) return fees;
-    for (const row of billingRows) {
-      if (!row.gatewayRequestId || row.costDisplay === "—") continue;
-      fees.set(row.gatewayRequestId, {
-        costDisplay: row.costDisplay,
-        ...(row.costExact ? { costExact: row.costExact } : {}),
-      });
-    }
-    return fees;
-  }, [billingRows]);
+    if (!billingRows) return new Map();
+    const tickets = billingRows.flatMap((row) =>
+      row.gatewayRequestId && row.costDisplay !== "—"
+        ? [
+            {
+              gatewayRequestId: row.gatewayRequestId,
+              modelId: row.capabilityId ?? "",
+              time: row.timestamp,
+              costDisplay: row.costDisplay,
+              ...(row.costExact ? { costExact: row.costExact } : {}),
+            },
+          ]
+        : []
+    );
+    const runs = [
+      ...(history.page?.items ?? []).map((run) => ({
+        gatewayRequestId: run.gatewayRequestId,
+        capability: run.modelId ?? run.capability,
+        createdAt: run.createdAt,
+      })),
+      ...(detail.detail
+        ? [
+            {
+              gatewayRequestId: detail.detail.gatewayRequestId,
+              capability: detail.detail.modelId ?? detail.detail.capability,
+              createdAt: detail.detail.createdAt,
+            },
+          ]
+        : []),
+    ];
+    return matchRunTicketFees(runs, tickets);
+  }, [billingRows, history.page, detail.detail]);
   const router = useRouter();
-  const requestId = useSearchParams().get("request");
   const recorded = useMemo(
     () =>
       history.page?.items.map((run) =>
@@ -55,12 +83,6 @@ export default function CallsSection({
   const rows = recorded;
   const found = rows.find(
     (row) => row.id === requestId || row.gatewayRequestId === requestId
-  );
-  const detail = useRunDetail(
-    "/api/console/runs",
-    requestId,
-    ownerKey,
-    isConnected
   );
   const openRow =
     detail.detail &&
