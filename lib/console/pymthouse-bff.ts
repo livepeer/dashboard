@@ -256,6 +256,13 @@ export async function fetchAccountRequestsForExternalUser(input: {
   cursor?: string | null;
   limit?: number;
   gatewayRequestIds?: string[];
+  /**
+   * Cost lookups must not send a 365-day window. OpenMeter lists cap at 100
+   * events and PymtHouse filters `gatewayRequestId` after that fetch, so a
+   * year-long range drops the ticket the Home drawer is trying to price.
+   * Omitting from/to uses the current UTC month on `/me/usage/requests`.
+   */
+  recentWindow?: boolean;
 }): Promise<AccountRequestsPayload> {
   const publicClientId = readPublicClientId();
   const minted = await mintEndUserAccessToken(
@@ -263,15 +270,21 @@ export async function fetchAccountRequestsForExternalUser(input: {
     input.email
   );
   const accessToken = minted.access_token;
+  const ids = takeGatewayRequestIds(input.gatewayRequestIds ?? []);
+  const recentWindow = input.recentWindow === true || ids.length > 0;
 
-  const url = new URL(`${issuerOriginFromConfig()}/api/v1/user/usage/requests`);
-  const range = historyRange();
-  url.searchParams.set("from", range.from);
-  url.searchParams.set("to", range.to);
-  if (input.cursor && !input.gatewayRequestIds?.length)
+  const url = new URL(
+    `${issuerOriginFromConfig()}/api/v1/apps/${encodeURIComponent(publicClientId)}/me/usage/requests`
+  );
+  if (!recentWindow) {
+    const range = historyRange();
+    url.searchParams.set("from", range.from);
+    url.searchParams.set("to", range.to);
+  }
+  if (input.cursor && ids.length === 0)
     url.searchParams.set("cursor", input.cursor);
   if (input.limit != null) url.searchParams.set("limit", String(input.limit));
-  for (const id of takeGatewayRequestIds(input.gatewayRequestIds ?? [])) {
+  for (const id of ids) {
     url.searchParams.append("gatewayRequestId", id);
   }
 

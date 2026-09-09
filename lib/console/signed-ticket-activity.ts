@@ -31,6 +31,7 @@ export function mapSignedTicketToActivityRow(
   return {
     id: `usage:${row.eventId}`,
     gatewayRequestId: row.gatewayRequestId,
+    capabilityId: row.modelId,
     recordKind: "usage",
     environmentId: "env-production",
     timestamp: row.time,

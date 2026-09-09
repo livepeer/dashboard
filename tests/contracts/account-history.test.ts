@@ -51,6 +51,7 @@ it("keeps old history and pagination even when its media is unavailable", async 
   expect(result.items).toEqual(items);
   expect(result.nextCursor).toBe("older-page");
   const url = new URL(fetch.mock.calls[0][0] as string);
+  expect(url.pathname).toBe("/api/v1/apps/test-app/me/usage/requests");
   const from = url.searchParams.get("from");
   expect(from).toBeTruthy();
   expect(from).not.toBe("1970-01-01T00:00:00.000Z");
@@ -78,11 +79,14 @@ it("asks PymtHouse for the signed-ticket rows by gateway request id", async () =
     gatewayRequestIds: ["job_saved", "job_other"],
   });
   const url = new URL(fetch.mock.calls[0][0] as string);
+  expect(url.pathname).toBe("/api/v1/apps/test-app/me/usage/requests");
   expect(url.searchParams.getAll("gatewayRequestId")).toEqual([
     "job_saved",
     "job_other",
   ]);
   expect(url.searchParams.get("cursor")).toBeNull();
+  expect(url.searchParams.get("from")).toBeNull();
+  expect(url.searchParams.get("to")).toBeNull();
 });
 
 it("caps overflowing gatewayRequestId lists at the usage API limit", async () => {
@@ -101,6 +105,7 @@ it("caps overflowing gatewayRequestId lists at the usage API limit", async () =>
     gatewayRequestIds: ids,
   });
   const url = new URL(fetch.mock.calls[0][0] as string);
+  expect(url.pathname).toBe("/api/v1/apps/test-app/me/usage/requests");
   expect(url.searchParams.getAll("gatewayRequestId")).toEqual(ids.slice(0, 50));
 });
 

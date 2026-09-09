@@ -91,68 +91,57 @@ export async function GET(request: NextRequest) {
     const session = await requireConsoleSession();
     const appId = configuredPymthouseScope().appId;
     if (gatewayRequestIds.length > 0) {
-      const payload = await fetchAccountRequestsForExternalUser({
-        externalUserId: session.externalUserId,
-        email: session.email,
-        limit,
-        gatewayRequestIds,
-      });
-      if (
-        payload.externalUserId !== session.externalUserId ||
-        payload.clientId !== appId
-      )
-        throw new AccessError("unavailable");
-      const wanted = new Set(gatewayRequestIds);
-      const matchedByGateway = new Map<string, SignedTicketRequestRow>();
-      const collectMatches = (items: SignedTicketRequestRow[]) => {
-        for (const item of items) {
-          if (
-            item.externalUserId !== session.externalUserId ||
-            item.clientId !== appId ||
-            !wanted.has(item.gatewayRequestId) ||
-            matchedByGateway.has(item.gatewayRequestId)
-          )
-            continue;
-          matchedByGateway.set(item.gatewayRequestId, item);
-        }
-      };
-      collectMatches(payload.items);
-
-      let next = payload.nextCursor;
-      for (
-        let page = 0;
-        matchedByGateway.size < wanted.size &&
-        next &&
-        page < MAX_CORRELATED_LOOKUP_PAGES;
-        page++
-      ) {
+      // Production tickets are orchestrator 8-hex CloudEvent ids; MCP runs
+      // store `job_*`. The by-id query param is ignored, so never filter the
+      // feed down to those job ids — Home joins on capability + time.
+      const collected: SignedTicketRequestRow[] = [];
+      const seen = new Set<string>();
+      let next: string | undefined;
+      let lastPayload: Awaited<
+        ReturnType<typeof fetchAccountRequestsForExternalUser>
+      > | null = null;
+      for (let page = 0; page < MAX_CORRELATED_LOOKUP_PAGES; page++) {
         const nextPayload = await fetchAccountRequestsForExternalUser({
           externalUserId: session.externalUserId,
           email: session.email,
           cursor: next,
           limit,
+          recentWindow: true,
         });
         if (
           nextPayload.externalUserId !== session.externalUserId ||
           nextPayload.clientId !== appId
         )
           throw new AccessError("unavailable");
-        collectMatches(nextPayload.items);
-        if (nextPayload.nextCursor === next) break;
+        lastPayload = nextPayload;
+        for (const item of nextPayload.items) {
+          if (
+            (item.externalUserId &&
+              item.externalUserId !== session.externalUserId) ||
+            (item.clientId && item.clientId !== appId)
+          )
+            continue;
+          const key = `${item.eventId}\0${item.gatewayRequestId}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          collected.push(item);
+        }
+        if (!nextPayload.nextCursor || nextPayload.nextCursor === next) break;
         next = nextPayload.nextCursor;
       }
-
-      const scoped = [...matchedByGateway.values()];
-      if (scoped.length === 0) {
-        console.warn("[account-requests] live Cost lookup returned no matches", {
-          externalUserId: session.externalUserId,
-          appId,
-          probeGatewayRequestId: "job_713a57c61e3d4976",
+      if (collected.length === 0) {
+        console.warn("[account-requests] live Cost lookup returned no tickets", {
           requestedGatewayRequestIds: gatewayRequestIds.slice(0, 10),
         });
       }
       return NextResponse.json(
-        { ...payload, items: scoped, nextCursor: null },
+        {
+          items: collected,
+          nextCursor: null,
+          openMeterConfigured: lastPayload?.openMeterConfigured !== false,
+          clientId: lastPayload?.clientId ?? appId,
+          externalUserId: lastPayload?.externalUserId ?? session.externalUserId,
+        },
         { headers: PYMTHOUSE_NO_STORE_HEADERS }
       );
     }

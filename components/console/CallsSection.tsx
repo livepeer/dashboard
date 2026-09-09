@@ -7,6 +7,7 @@ import CallsTable from "@/components/console/CallsTable";
 import CallDetailDrawer from "@/components/console/CallDetailDrawer";
 import { useAuth } from "@/components/console/AuthContext";
 import { takeGatewayRequestIds } from "@/lib/console/gateway-request-ids";
+import { matchRunTicketFees } from "@/lib/console/activity-output-match";
 import { useAccountRequests } from "@/lib/console/useAccountRequests";
 import { useRunDetail, useRunHistory } from "@/lib/console/useRunHistory";
 import { runToActivity } from "@/lib/console/run-activity";
@@ -44,26 +45,48 @@ export default function CallsSection({
       ),
     [history.page, detail.detail]
   );
-  // Cost is the signed-ticket fee for this run id, not a second history feed.
+  // Cost is the PymtHouse signed-ticket fee for this gateway id. Do not wait
+  // for the full history page — deep links need the open run's id immediately.
   const billing = useAccountRequests(
-    isConnected && !history.loading && gatewayRequestIds.length > 0,
+    isConnected && gatewayRequestIds.length > 0,
     ownerKey,
     true,
     gatewayRequestIds
   );
   const billingRows = billing.status === "ready" ? billing.rows : null;
   const feeByGateway = useMemo(() => {
-    const fees = new Map<string, { costDisplay: string; costExact?: string }>();
-    if (!billingRows) return fees;
-    for (const row of billingRows) {
-      if (!row.gatewayRequestId || row.costDisplay === "—") continue;
-      fees.set(row.gatewayRequestId, {
-        costDisplay: row.costDisplay,
-        ...(row.costExact ? { costExact: row.costExact } : {}),
-      });
-    }
-    return fees;
-  }, [billingRows]);
+    if (!billingRows) return new Map();
+    const tickets = billingRows.flatMap((row) =>
+      row.gatewayRequestId && row.costDisplay !== "—"
+        ? [
+            {
+              gatewayRequestId: row.gatewayRequestId,
+              modelId: row.capabilityId ?? "",
+              time: row.timestamp,
+              costDisplay: row.costDisplay,
+              ...(row.costExact ? { costExact: row.costExact } : {}),
+            },
+          ]
+        : []
+    );
+    const runs = [
+      ...(history.page?.items ?? []).map((run) => ({
+        gatewayRequestId: run.gatewayRequestId,
+        capability: run.modelId ?? run.capability,
+        createdAt: run.createdAt,
+      })),
+      ...(detail.detail
+        ? [
+            {
+              gatewayRequestId: detail.detail.gatewayRequestId,
+              capability: detail.detail.modelId ?? detail.detail.capability,
+              createdAt: detail.detail.createdAt,
+            },
+          ]
+        : []),
+    ];
+    return matchRunTicketFees(runs, tickets);
+  }, [billingRows, history.page, detail.detail]);
   const router = useRouter();
   const recorded = useMemo(
     () =>

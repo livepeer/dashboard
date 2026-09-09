@@ -121,25 +121,43 @@ it("suppresses owned run tickets, persists fee-only evidence, and joins assets o
   ]);
 });
 
-it("looks up Cost by gateway request id without walking usage pages", async () => {
+it("keeps a Cost match when the PymtHouse row omits clientId", async () => {
+  const ticket = { ...row("owned"), clientId: undefined as never };
+  delete (ticket as { clientId?: string }).clientId;
   vi.mocked(fetchAccountRequestsForExternalUser).mockResolvedValue(
-    payload([row("owned"), row("noise")], null)
+    payload([ticket], null)
+  );
+  const result = await (
+    await GET(
+      new NextRequest(
+        "http://localhost/api/pymthouse/account-requests?includeCorrelated=1&gatewayRequestId=owned"
+      )
+    )
+  ).json();
+  expect(result.items).toEqual([ticket]);
+});
+
+it("returns current-month tickets for Cost instead of filtering to job_* ids", async () => {
+  const hex = row("c9a1fae7");
+  vi.mocked(fetchAccountRequestsForExternalUser).mockResolvedValue(
+    payload([hex, row("noise")], null)
   );
   const response = await GET(
     new NextRequest(
-      "http://localhost/api/pymthouse/account-requests?includeCorrelated=1&gatewayRequestId=owned"
+      "http://localhost/api/pymthouse/account-requests?includeCorrelated=1&gatewayRequestId=job_fe3e40004a49442c"
     )
   );
   expect(response.status).toBe(200);
   const result = await response.json();
-  expect(result.items).toEqual([row("owned")]);
+  expect(result.items).toEqual([hex, row("noise")]);
   expect(result.nextCursor).toBeNull();
   expect(fetchAccountRequestsForExternalUser).toHaveBeenCalledTimes(1);
   expect(fetchAccountRequestsForExternalUser).toHaveBeenCalledWith({
     externalUserId: "eu_fixture",
     email: "fixture@example.invalid",
+    cursor: undefined,
     limit: 50,
-    gatewayRequestIds: ["owned"],
+    recentWindow: true,
   });
   expect(recordRunUsage).not.toHaveBeenCalled();
   expect(resolveRunOwner).not.toHaveBeenCalled();
@@ -159,10 +177,10 @@ it("rejects gatewayRequestId unless includeCorrelated is enabled", async () => {
   expect(recordRunUsage).not.toHaveBeenCalled();
 });
 
-it("falls back to paged live usage when by-id misses the first page", async () => {
-  vi.mocked(fetchAccountRequestsForExternalUser)
-    .mockResolvedValueOnce(payload([row("noise")], "next-page"))
-    .mockResolvedValueOnce(payload([row("owned")], null));
+it("falls back to current-month me/usage/requests when by-id returns empty", async () => {
+  vi.mocked(fetchAccountRequestsForExternalUser).mockResolvedValue(
+    payload([row("owned")], null)
+  );
   const response = await GET(
     new NextRequest(
       "http://localhost/api/pymthouse/account-requests?includeCorrelated=1&gatewayRequestId=owned"
@@ -170,17 +188,13 @@ it("falls back to paged live usage when by-id misses the first page", async () =
   );
   expect(response.status).toBe(200);
   expect((await response.json()).items).toEqual([row("owned")]);
-  expect(fetchAccountRequestsForExternalUser).toHaveBeenNthCalledWith(1, {
+  expect(fetchAccountRequestsForExternalUser).toHaveBeenCalledTimes(1);
+  expect(fetchAccountRequestsForExternalUser).toHaveBeenCalledWith({
     externalUserId: "eu_fixture",
     email: "fixture@example.invalid",
+    cursor: undefined,
     limit: 50,
-    gatewayRequestIds: ["owned"],
-  });
-  expect(fetchAccountRequestsForExternalUser).toHaveBeenNthCalledWith(2, {
-    externalUserId: "eu_fixture",
-    email: "fixture@example.invalid",
-    cursor: "next-page",
-    limit: 50,
+    recentWindow: true,
   });
   expect(recordRunUsage).not.toHaveBeenCalled();
   expect(resolveRunOwner).not.toHaveBeenCalled();
@@ -203,7 +217,15 @@ it("continues scanning beyond five pages for by-id Cost lookup", async () => {
   );
 
   expect(response.status).toBe(200);
-  expect((await response.json()).items).toEqual([row("owned")]);
+  expect((await response.json()).items.map((item: SignedTicketRequestRow) => item.gatewayRequestId)).toEqual([
+    "noise-1",
+    "noise-2",
+    "noise-3",
+    "noise-4",
+    "noise-5",
+    "noise-6",
+    "owned",
+  ]);
   expect(fetchAccountRequestsForExternalUser).toHaveBeenCalledTimes(7);
   expect(recordRunUsage).not.toHaveBeenCalled();
   expect(resolveRunOwner).not.toHaveBeenCalled();
@@ -222,8 +244,9 @@ it("caps an overflowing gatewayRequestId list instead of 400ing Cost", async () 
   expect(fetchAccountRequestsForExternalUser).toHaveBeenCalledWith({
     externalUserId: "eu_fixture",
     email: "fixture@example.invalid",
+    cursor: undefined,
     limit: 50,
-    gatewayRequestIds: ids.slice(0, 50),
+    recentWindow: true,
   });
 });
 

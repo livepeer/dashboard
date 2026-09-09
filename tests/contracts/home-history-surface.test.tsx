@@ -119,8 +119,72 @@ it("shows Postgres rows even when billing is unavailable", async () => {
   expect(screen.queryByRole("alert")).toBeNull();
   expect(screen.queryByText("Usage-only history")).toBeNull();
   await waitFor(() =>
-    expect(screen.getByTestId("detail-cost").textContent).toBe("$0.0025")
+    expect(screen.getByTestId("detail-cost").textContent).toBe("—")
   );
+});
+
+it("joins an orchestrator 8-hex ticket onto an MCP job_* run", async () => {
+  const run = {
+    id: "28d04c8a-7edd-487e-a0c4-5f95ed637a4b",
+    principalId: "external",
+    userId: "user",
+    externalAccountId: "account",
+    gatewayRequestId: "job_fe3e40004a49442c",
+    providerRequestId: null,
+    provider: null,
+    source: "mcp",
+    capability: "livepeer-example/fal-ideogram-v4",
+    modelId: "livepeer-example/fal-ideogram-v4",
+    endpoint: null,
+    status: "succeeded" as const,
+    captureVersion: 1,
+    errorCode: null,
+    errorMessage: null,
+    version: 2,
+    createdAt: "2026-09-09T21:42:18.000Z",
+    updatedAt: "2026-09-09T21:42:19.000Z",
+    startedAt: "2026-09-09T21:42:18.000Z",
+    completedAt: "2026-09-09T21:42:19.000Z",
+    email: null,
+  };
+  records.push(run);
+  navigation.search = "request=28d04c8a-7edd-487e-a0c4-5f95ed637a4b";
+  fetcher.mockImplementation(async (input: string) => {
+    if (input === "/api/console/runs/28d04c8a-7edd-487e-a0c4-5f95ed637a4b") {
+      return Response.json({
+        ...run,
+        submittedArguments: null,
+        result: null,
+        captureRedactedPaths: [],
+        assets: [],
+        events: [],
+      });
+    }
+    if (String(input).startsWith("/api/console/runs"))
+      return Response.json({ items: records, nextCursor: null });
+    return Response.json({
+      items: [
+        {
+          eventId: "c9a1fae7",
+          gatewayRequestId: "c9a1fae7",
+          time: "2026-09-09T21:42:19.000Z",
+          clientId: "app_test",
+          externalUserId: "eu_test",
+          pipeline: "text-to-image",
+          modelId: "livepeer-example/fal-ideogram-v4",
+          networkFeeUsdMicros: "9984.675492933755",
+          feeWei: "4048746912830",
+        },
+      ],
+      nextCursor: null,
+      openMeterConfigured: true,
+    });
+  });
+  render(<CallsSection query="" onQueryChange={vi.fn()} />);
+  await waitFor(() =>
+    expect(screen.getByTestId("detail-cost").textContent).not.toBe("—")
+  );
+  expect(screen.getByTestId("detail-cost").textContent).toMatch(/^\$0\.0/);
 });
 
 it("joins a correlated ticket fee onto the saved run, without adding a billing row", async () => {
