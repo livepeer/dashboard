@@ -19,7 +19,8 @@ import {
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-const MAX_LOOKUP_PAGES = 5;
+const MAX_LEGACY_LOOKUP_PAGES = 5;
+const MAX_CORRELATED_LOOKUP_PAGES = 40;
 
 function persistableTicketFees(items: SignedTicketRequestRow[]) {
   return items
@@ -128,7 +129,9 @@ export async function GET(request: NextRequest) {
       let next = payload.nextCursor;
       for (
         let page = 0;
-        matchedByGateway.size < wanted.size && next && page < MAX_LOOKUP_PAGES;
+        matchedByGateway.size < wanted.size &&
+        next &&
+        page < MAX_CORRELATED_LOOKUP_PAGES;
         page++
       ) {
         const nextPayload = await fetchAccountRequestsForExternalUser({
@@ -165,7 +168,7 @@ export async function GET(request: NextRequest) {
     let next = cursor;
     // Upstream cursors are independent from durable-run cursors. Skip at most
     // five entirely correlated pages per request, preserving actual continuation.
-    for (let page = 0; page < MAX_LOOKUP_PAGES; page++) {
+    for (let page = 0; page < MAX_LEGACY_LOOKUP_PAGES; page++) {
       const payload = await fetchAccountRequestsForExternalUser({
         externalUserId: session.externalUserId,
         email: session.email,
@@ -201,7 +204,7 @@ export async function GET(request: NextRequest) {
       if (
         legacy.length ||
         !payload.nextCursor ||
-        page === MAX_LOOKUP_PAGES - 1 ||
+        page === MAX_LEGACY_LOOKUP_PAGES - 1 ||
         payload.nextCursor === next
       ) {
         const items = await attachOutputsToTickets(
