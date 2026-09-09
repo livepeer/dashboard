@@ -139,6 +139,13 @@ it("returns scoped matched receipts when Home explicitly requests correlation", 
   expect(result.items).toEqual([row("owned")]);
   expect(result.nextCursor).toBe("next");
   expect(recordRunUsage).toHaveBeenCalledTimes(1);
+  expect(fetchAccountRequestsForExternalUser).toHaveBeenCalledWith({
+    externalUserId: "eu_fixture",
+    email: "fixture@example.invalid",
+    cursor: undefined,
+    limit: 50,
+    recentWindow: true,
+  });
   expect(JSON.stringify(vi.mocked(recordRunUsage).mock.calls)).not.toContain(
     "event-other"
   );

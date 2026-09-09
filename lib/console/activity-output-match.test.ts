@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { matchTicketOutputs } from "./activity-output-match";
+import { matchRunTicketFees, matchTicketOutputs } from "./activity-output-match";
 import type { SignedTicketRequestRow } from "./account-usage";
 
 function ticket(
@@ -162,4 +162,80 @@ test("job_* tickets without an exact id match do not fuzzy-join another job", ()
     },
   ]);
   assert.equal(matched.has("job_abc"), false);
+});
+
+test("exact ticket id still prices a run", () => {
+  const fees = matchRunTicketFees(
+    [
+      {
+        gatewayRequestId: "job_saved",
+        capability: "livepeer-example/fal-flux-schnell",
+        createdAt: "2026-09-09T21:09:30.000Z",
+      },
+    ],
+    [
+      {
+        gatewayRequestId: "job_saved",
+        modelId: "livepeer-example/fal-flux-schnell",
+        time: "2026-09-09T21:09:30.000Z",
+        costDisplay: "$0.0030",
+        costExact: "$0.002999",
+      },
+    ]
+  );
+  assert.equal(fees.get("job_saved")?.costDisplay, "$0.0030");
+});
+
+test("orchestrator 8-hex tickets price MCP job_* runs by capability and nearest time", () => {
+  const fees = matchRunTicketFees(
+    [
+      {
+        gatewayRequestId: "job_b6edf64e2a2442da",
+        capability: "livepeer-example/fal-flux-schnell",
+        createdAt: "2026-09-09T21:09:28.000Z",
+      },
+      {
+        gatewayRequestId: "job_later",
+        capability: "livepeer-example/fal-flux-schnell",
+        createdAt: "2026-09-09T21:15:16.000Z",
+      },
+    ],
+    [
+      {
+        gatewayRequestId: "5b66062c",
+        modelId: "livepeer-example/fal-flux-schnell",
+        time: "2026-09-09T21:09:30.000Z",
+        costDisplay: "$0.0030",
+      },
+      {
+        gatewayRequestId: "55d0075d",
+        modelId: "livepeer-example/fal-flux-schnell",
+        time: "2026-09-09T21:15:16.000Z",
+        costDisplay: "$0.0030",
+      },
+    ]
+  );
+  assert.equal(fees.get("job_b6edf64e2a2442da")?.costDisplay, "$0.0030");
+  assert.equal(fees.get("job_later")?.costDisplay, "$0.0030");
+});
+
+test("8-hex tickets do not price a different capability", () => {
+  const fees = matchRunTicketFees(
+    [
+      {
+        gatewayRequestId: "job_video",
+        capability: "livepeer-example/fal-ltx-25-t2v-fast",
+        createdAt: "2026-09-09T21:09:30.000Z",
+      },
+    ],
+    [
+      {
+        gatewayRequestId: "5b66062c",
+        modelId: "livepeer-example/fal-flux-schnell",
+        time: "2026-09-09T21:09:30.000Z",
+        costDisplay: "$0.0030",
+      },
+    ]
+  );
+  assert.equal(fees.has("job_video"), false);
 });

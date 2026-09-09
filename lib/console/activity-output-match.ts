@@ -91,3 +91,72 @@ export function matchTicketOutputs(
 
   return out;
 }
+
+export type FeeTicket = {
+  gatewayRequestId: string;
+  modelId: string;
+  time: string;
+  costDisplay: string;
+  costExact?: string;
+};
+
+export type FeeRun = {
+  gatewayRequestId: string;
+  capability: string;
+  createdAt: string;
+};
+
+/**
+ * Join PymtHouse tickets onto console runs.
+ * Production tickets are orchestrator 8-hex CloudEvent ids; MCP runs store
+ * `job_*`. Exact id wins; leftover 8-hex tickets assign greedily to the
+ * nearest unused same-capability run in the asset-match window.
+ */
+export function matchRunTicketFees(
+  runs: FeeRun[],
+  tickets: FeeTicket[]
+): Map<string, { costDisplay: string; costExact?: string }> {
+  const out = new Map<string, { costDisplay: string; costExact?: string }>();
+  const used = new Set<string>();
+  const feeOf = (ticket: FeeTicket) => ({
+    costDisplay: ticket.costDisplay,
+    ...(ticket.costExact ? { costExact: ticket.costExact } : {}),
+  });
+
+  for (const run of runs) {
+    const exact = tickets.find(
+      (ticket) =>
+        ticket.gatewayRequestId === run.gatewayRequestId &&
+        !used.has(ticket.gatewayRequestId)
+    );
+    if (!exact || exact.costDisplay === "—") continue;
+    used.add(exact.gatewayRequestId);
+    out.set(run.gatewayRequestId, feeOf(exact));
+  }
+
+  const remaining = [...runs]
+    .filter((run) => !out.has(run.gatewayRequestId))
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+
+  for (const run of remaining) {
+    const runTime = Date.parse(run.createdAt);
+    if (!Number.isFinite(runTime) || !run.capability.trim()) continue;
+    let best: { ticket: FeeTicket; delta: number } | null = null;
+    for (const ticket of tickets) {
+      if (used.has(ticket.gatewayRequestId)) continue;
+      if (!isOrchestratorTicketId(ticket.gatewayRequestId)) continue;
+      if (ticket.modelId !== run.capability) continue;
+      if (ticket.costDisplay === "—") continue;
+      const ticketTime = Date.parse(ticket.time);
+      if (!Number.isFinite(ticketTime)) continue;
+      const delta = Math.abs(ticketTime - runTime);
+      if (delta > TICKET_ASSET_MATCH_WINDOW_MS) continue;
+      if (!best || delta < best.delta) best = { ticket, delta };
+    }
+    if (!best) continue;
+    used.add(best.ticket.gatewayRequestId);
+    out.set(run.gatewayRequestId, feeOf(best.ticket));
+  }
+
+  return out;
+}

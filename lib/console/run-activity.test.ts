@@ -46,7 +46,7 @@ test("run history uses the signed-ticket fee mapper", () => {
   assert.equal(row.costExact, "$0.001");
 });
 
-test("run detail reads the latest billing_usage event", () => {
+test("run detail does not take Cost from Postgres run events", () => {
   const detail = {
     ...summary(),
     submittedArguments: null,
@@ -73,5 +73,5 @@ test("run detail reads the latest billing_usage event", () => {
   const fields = feeFieldsFromRunEvents(detail.events);
   assert.equal(fields?.networkFeeUsdMicros, "2500");
   const row = runToActivity(detail);
-  assert.equal(row.costDisplay, "$0.0025");
+  assert.equal(row.costDisplay, "—");
 });

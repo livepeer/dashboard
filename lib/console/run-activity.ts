@@ -65,11 +65,7 @@ export function runToActivity(
     run.startedAt && run.completedAt
       ? Date.parse(run.completedAt) - Date.parse(run.startedAt)
       : null;
-  const cost =
-    costFromFee(fee) ??
-    costFromFee(
-      feeFieldsFromRunEvents("events" in run ? run.events : undefined)
-    );
+  const cost = costFromFee(fee);
   return {
     id: run.id,
     recordKind: "run",
