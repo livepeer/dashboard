@@ -49,13 +49,16 @@ async function fetchRequestsPage(
   };
 }
 
+/** Shared default so omitting ids does not allocate a new array every render. */
+const NO_GATEWAY_REQUEST_IDS: string[] = [];
+
 /** Private history is instance-local, never a global cross-account cache.
  * ownerKey invalidates in-flight work even when both old/new accounts are enabled. */
 export function useAccountRequests(
   enabled: boolean,
   ownerKey?: string,
   includeCorrelated = false,
-  gatewayRequestIds: string[] = []
+  gatewayRequestIds: string[] = NO_GATEWAY_REQUEST_IDS
 ) {
   const idKey = gatewayRequestIds.join("\0");
   const scope = enabled
@@ -108,7 +111,7 @@ export function useAccountRequests(
       controller.abort();
       appendController.current?.abort();
     };
-  }, [scope, enabled, refresh, includeCorrelated, idKey]);
+  }, [scope, enabled, refresh, includeCorrelated, gatewayRequestIds]);
 
   const state = useMemo<AccountRequestsState>(
     () =>
@@ -172,7 +175,7 @@ export function useAccountRequests(
     } finally {
       if (generation.current === id) appendBusy.current = false;
     }
-  }, [enabled, state, scope, includeCorrelated, idKey]);
+  }, [enabled, state, scope, includeCorrelated, gatewayRequestIds]);
   const reload = useCallback(() => setRefresh((value) => value + 1), []);
   return { ...state, reload, loadMore };
 }
