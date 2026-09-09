@@ -144,6 +144,20 @@ it("looks up Cost by gateway request id without walking usage pages", async () =
   expect(recordRunUsage).toHaveBeenCalledTimes(1);
 });
 
+it("rejects gatewayRequestId unless includeCorrelated is enabled", async () => {
+  const response = await GET(
+    new NextRequest(
+      "http://localhost/api/pymthouse/account-requests?gatewayRequestId=owned"
+    )
+  );
+  expect(response.status).toBe(400);
+  await expect(response.json()).resolves.toEqual({
+    error: "gatewayRequestId requires includeCorrelated=1",
+  });
+  expect(fetchAccountRequestsForExternalUser).not.toHaveBeenCalled();
+  expect(recordRunUsage).not.toHaveBeenCalled();
+});
+
 it("falls back to paged live usage when by-id misses the first page", async () => {
   vi.mocked(fetchAccountRequestsForExternalUser)
     .mockResolvedValueOnce(payload([row("noise")], "next-page"))

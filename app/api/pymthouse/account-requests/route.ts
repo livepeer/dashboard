@@ -63,6 +63,12 @@ export async function GET(request: NextRequest) {
   const gatewayRequestIds = takeGatewayRequestIds(
     request.nextUrl.searchParams.getAll("gatewayRequestId")
   );
+  if (gatewayRequestIds.length > 0 && !includeCorrelated) {
+    return NextResponse.json(
+      { error: "gatewayRequestId requires includeCorrelated=1" },
+      { status: 400, headers: PYMTHOUSE_NO_STORE_HEADERS }
+    );
+  }
   if (gatewayRequestIds.some((id) => id.length > 512)) {
     return NextResponse.json(
       { error: "gatewayRequestId too long" },
