@@ -144,6 +144,24 @@ it("looks up Cost by gateway request id without walking usage pages", async () =
   expect(recordRunUsage).toHaveBeenCalledTimes(1);
 });
 
+it("caps an overflowing gatewayRequestId list instead of 400ing Cost", async () => {
+  const ids = Array.from({ length: 51 }, (_, i) => `job_${i}`);
+  vi.mocked(fetchAccountRequestsForExternalUser).mockResolvedValue(
+    payload(ids.map(row), null)
+  );
+  const url = new URL("http://localhost/api/pymthouse/account-requests");
+  url.searchParams.set("includeCorrelated", "1");
+  for (const id of ids) url.searchParams.append("gatewayRequestId", id);
+  const response = await GET(new NextRequest(url));
+  expect(response.status).toBe(200);
+  expect(fetchAccountRequestsForExternalUser).toHaveBeenCalledWith({
+    externalUserId: "eu_fixture",
+    email: "fixture@example.invalid",
+    limit: 50,
+    gatewayRequestIds: ids.slice(0, 50),
+  });
+});
+
 it("returns scoped matched receipts when Home explicitly requests correlation", async () => {
   vi.mocked(fetchAccountRequestsForExternalUser).mockResolvedValue(
     payload(

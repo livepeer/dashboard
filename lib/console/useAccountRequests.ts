@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { takeGatewayRequestIds } from "@/lib/console/gateway-request-ids";
 import type { AccountRequestsPayload } from "@/lib/console/account-usage";
 import { mapSignedTicketToActivityRow } from "@/lib/console/signed-ticket-activity";
 import type { AccountActivityRow } from "@/lib/console/types";
@@ -27,9 +28,8 @@ async function fetchRequestsPage(
   const params = new URLSearchParams({ limit: "50" });
   if (includeCorrelated) params.set("includeCorrelated", "1");
   if (cursor) params.set("cursor", cursor);
-  for (const id of gatewayRequestIds) {
-    const trimmed = id.trim();
-    if (trimmed) params.append("gatewayRequestId", trimmed);
+  for (const id of takeGatewayRequestIds(gatewayRequestIds)) {
+    params.append("gatewayRequestId", id);
   }
   const response = await fetch(`/api/pymthouse/account-requests?${params}`, {
     cache: "no-store",

@@ -85,6 +85,25 @@ it("asks PymtHouse for the signed-ticket rows by gateway request id", async () =
   expect(url.searchParams.get("cursor")).toBeNull();
 });
 
+it("caps overflowing gatewayRequestId lists at the usage API limit", async () => {
+  const fetch = vi.fn<typeof globalThis.fetch>(async () =>
+    Response.json({
+      items: [],
+      nextCursor: null,
+      openMeterConfigured: true,
+    })
+  );
+  vi.stubGlobal("fetch", fetch);
+  const ids = Array.from({ length: 51 }, (_, i) => `job_${i}`);
+  await fetchAccountRequestsForExternalUser({
+    externalUserId: "test-user",
+    limit: 50,
+    gatewayRequestIds: ids,
+  });
+  const url = new URL(fetch.mock.calls[0][0] as string);
+  expect(url.searchParams.getAll("gatewayRequestId")).toEqual(ids.slice(0, 50));
+});
+
 it("does not label History with media expiry or a seven-day limit", () => {
   const source = readFileSync("components/console/CallsSection.tsx", "utf8");
   expect(source).toContain('title="History"');

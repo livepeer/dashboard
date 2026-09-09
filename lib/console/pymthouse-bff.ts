@@ -21,6 +21,7 @@ import {
   utcDateKeysForPeriod,
 } from "@/lib/console/usage-capability-display";
 import { historyRange } from "@/lib/console/history-range";
+import { takeGatewayRequestIds } from "@/lib/console/gateway-request-ids";
 import { isUserNotFoundError } from "@/lib/console/pymthouse-errors";
 
 export type {
@@ -270,9 +271,8 @@ export async function fetchAccountRequestsForExternalUser(input: {
   if (input.cursor && !input.gatewayRequestIds?.length)
     url.searchParams.set("cursor", input.cursor);
   if (input.limit != null) url.searchParams.set("limit", String(input.limit));
-  for (const id of input.gatewayRequestIds ?? []) {
-    const trimmed = id.trim();
-    if (trimmed) url.searchParams.append("gatewayRequestId", trimmed);
+  for (const id of takeGatewayRequestIds(input.gatewayRequestIds ?? [])) {
+    url.searchParams.append("gatewayRequestId", id);
   }
 
   const response = await fetch(url.toString(), {

@@ -6,6 +6,7 @@ import SectionHeader from "@/components/console/SectionHeader";
 import CallsTable from "@/components/console/CallsTable";
 import CallDetailDrawer from "@/components/console/CallDetailDrawer";
 import { useAuth } from "@/components/console/AuthContext";
+import { takeGatewayRequestIds } from "@/lib/console/gateway-request-ids";
 import { useAccountRequests } from "@/lib/console/useAccountRequests";
 import { useRunDetail, useRunHistory } from "@/lib/console/useRunHistory";
 import { runToActivity } from "@/lib/console/run-activity";
@@ -35,15 +36,14 @@ export default function CallsSection({
     ownerKey,
     isConnected
   );
-  const gatewayRequestIds = useMemo(() => {
-    const ids = new Set<string>();
-    for (const run of history.page?.items ?? []) {
-      if (run.gatewayRequestId) ids.add(run.gatewayRequestId);
-    }
-    if (detail.detail?.gatewayRequestId)
-      ids.add(detail.detail.gatewayRequestId);
-    return [...ids];
-  }, [history.page, detail.detail]);
+  const gatewayRequestIds = useMemo(
+    () =>
+      takeGatewayRequestIds(
+        (history.page?.items ?? []).map((run) => run.gatewayRequestId),
+        detail.detail?.gatewayRequestId
+      ),
+    [history.page, detail.detail]
+  );
   // Cost is the signed-ticket fee for this run id, not a second history feed.
   const billing = useAccountRequests(
     isConnected && !history.loading && gatewayRequestIds.length > 0,

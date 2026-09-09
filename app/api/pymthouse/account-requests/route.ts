@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { attachOutputsToTickets } from "@/lib/console/activity-assets";
+import { takeGatewayRequestIds } from "@/lib/console/gateway-request-ids";
 import { fetchAccountRequestsForExternalUser } from "@/lib/console/pymthouse-bff";
 import { requireConsoleSession } from "@/lib/console/session-user";
 import { AccessError } from "@/lib/access/service";
@@ -58,20 +59,9 @@ export async function GET(request: NextRequest) {
   // Home joins receipts onto durable runs; legacy consumers still omit matches.
   const includeCorrelated =
     request.nextUrl.searchParams.get("includeCorrelated") === "1";
-  const gatewayRequestIds = [
-    ...new Set(
-      request.nextUrl.searchParams
-        .getAll("gatewayRequestId")
-        .map((id) => id.trim())
-        .filter(Boolean)
-    ),
-  ];
-  if (gatewayRequestIds.length > 50) {
-    return NextResponse.json(
-      { error: "at most 50 gatewayRequestId values" },
-      { status: 400, headers: PYMTHOUSE_NO_STORE_HEADERS }
-    );
-  }
+  const gatewayRequestIds = takeGatewayRequestIds(
+    request.nextUrl.searchParams.getAll("gatewayRequestId")
+  );
   if (gatewayRequestIds.some((id) => id.length > 512)) {
     return NextResponse.json(
       { error: "gatewayRequestId too long" },
