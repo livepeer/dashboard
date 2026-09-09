@@ -22,7 +22,7 @@
     "@base-ui/react": "^1.8.0",
     "@modelcontextprotocol/sdk": "^1.30.0",
     "@pymthouse/builder-sdk": "^0.6.5",
-    "@pymthouse/gateway-web": "0.3.4-rc.1",
+    "@pymthouse/gateway-web": "0.3.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.45.2",
