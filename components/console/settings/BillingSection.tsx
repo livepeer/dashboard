@@ -33,8 +33,12 @@ import {
   useWalletBillingState,
 } from "@/lib/console/useOwnerWallet";
 import {
+  SESSION_USAGE_OPTIONS,
+  useAccountUsage,
+} from "@/lib/console/useAccountUsage";
+import {
   includedUsageRemainingLabel,
-  includedUsageSummary,
+  includedUsageSummaryFromBalance,
   formatWalletUsd,
   overageLimitNote,
 } from "@/lib/console/wallet-settlement-display";
@@ -195,10 +199,7 @@ export default function BillingSection() {
     removePaymentMethod,
   } = useBillingAccount(isConnected);
   const wallet = useWalletBillingState(isConnected);
-  const included =
-    wallet.state.status === "ready"
-      ? includedUsageSummary(wallet.state.wallet.billingState)
-      : null;
+  const usage = useAccountUsage(isConnected, SESSION_USAGE_OPTIONS);
 
   const [busyPlanId, setBusyPlanId] = useState<string | null>(null);
   const [pmBusy, setPmBusy] = useState(false);
@@ -657,6 +658,16 @@ export default function BillingSection() {
   const cancelingPlanName = resolveCancelingPlanName(subscription);
   const cancelingEndsAt = resolveCancelingEffectiveAt(subscription);
   const cancelingEndsLabel = formatPendingCancelDate(cancelingEndsAt);
+
+  const included =
+    usage.status === "ready"
+      ? includedUsageSummaryFromBalance(
+          usage.data.balance,
+          subscription
+            ? { id: subscription.planId, name: subscription.planName }
+            : undefined
+        )
+      : null;
 
   const planSub =
     subscriptionUiState.kind === "canceling"
