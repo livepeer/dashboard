@@ -8,6 +8,7 @@ import {
   collectionSchedule,
   includedUsageRemainingLabel,
   includedUsageSummary,
+  includedUsageSummaryFromBalance,
   overageLimitNote,
   spendPostureBadge,
 } from "./wallet-settlement-display";
@@ -250,6 +251,42 @@ describe("includedUsageSummary", () => {
     assert.equal(summary.totalUsd, "5.00");
     assert.equal(summary.consumedUsd, "0.02");
     assert.equal(summary.planName, "Starter");
+    assert.equal(
+      includedUsageRemainingLabel(summary),
+      "Starter · $4.98 of $5.00 included left",
+    );
+  });
+});
+
+describe("includedUsageSummaryFromBalance", () => {
+  it("returns null when the user has no granted allowance", () => {
+    const summary = includedUsageSummaryFromBalance({
+      externalUserId: "eu_1",
+      balanceUsdMicros: "0",
+      consumedUsdMicros: "0",
+      lifetimeGrantedUsdMicros: "0",
+      hasAccess: false,
+    });
+    assert.equal(summary, null);
+  });
+
+  it("maps remaining and granted from the user usage balance", () => {
+    const summary = includedUsageSummaryFromBalance(
+      {
+        externalUserId: "eu_1",
+        balanceUsdMicros: "4982000",
+        consumedUsdMicros: "18000",
+        lifetimeGrantedUsdMicros: "5000000",
+        hasAccess: true,
+      },
+      { id: "plan_1", name: "Starter" },
+    );
+    assert.ok(summary);
+    assert.equal(summary.remainingUsd, "4.98");
+    assert.equal(summary.totalUsd, "5.00");
+    assert.equal(summary.consumedUsd, "0.02");
+    assert.equal(summary.planName, "Starter");
+    assert.equal(summary.planId, "plan_1");
     assert.equal(
       includedUsageRemainingLabel(summary),
       "Starter · $4.98 of $5.00 included left",
